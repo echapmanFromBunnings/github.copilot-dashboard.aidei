@@ -4,31 +4,37 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <div class="row g-3 align-items-end">
-      <div class="col-12 col-md-3">
+    <div class="row g-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">From</label>
         <InputDate TValue="DateOnly?" @bind-Value="Data.FromDate" class="form-control" />
       </div>
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">To</label>
         <InputDate TValue="DateOnly?" @bind-Value="Data.ToDate" class="form-control" />
       </div>
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">Users</label>
         <input class="form-control" placeholder="Comma-separated" @bind="users" />
       </div>
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">Features</label>
         <input class="form-control" placeholder="e.g., code_completion, chat" @bind="features" />
-        <small class="form-text text-muted">Available: code_completion, chat, chat_inline</small>
       </div>
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-md-2">
         <label class="form-label">Models</label>
         <input class="form-control" placeholder="Comma-separated" @bind="models" />
       </div>
-      <div class="col-12 col-md-3">
-        <button class="btn btn-primary" @onclick="Apply">Apply Filters</button>
-        <button class="btn btn-outline-secondary ms-2" @onclick="Clear">Clear</button>
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" @onclick="Apply">Apply Filters</button>
+          <button class="btn btn-outline-secondary" @onclick="Clear">Clear</button>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-2">
+      <div class="col-12 col-md-2 offset-md-6">
+        <small class="form-text text-muted">Available: code_completion, chat, chat_inline</small>
       </div>
     </div>
   </div>
