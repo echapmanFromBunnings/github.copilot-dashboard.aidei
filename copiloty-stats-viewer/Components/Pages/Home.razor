@@ -1,0 +1,291 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+@using copiloty_stats_viewer.Services
+@using copiloty_stats_viewer.Components
+@inject DataService Data
+@inject IJSRuntime JS
+
+<PageTitle>Copilot Stats</PageTitle>
+
+<h1>Copilot Stats Explorer</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> Data Source
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <div class="input-file-wrapper">
+                <button class="btn btn-primary">
+                    <span class="oi oi-document" aria-hidden="true"></span> Select File
+                </button>
+                <InputFile OnChange="OnFileSelected" accept=".json,.ndjson,.txt" />
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="LoadSample">
+                <span class="oi oi-beaker" aria-hidden="true"></span> Load Sample Data
+            </button>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <label class="form-label mb-0">Total Licensed Users:</label>
+                <input type="number" class="form-control" style="width: 120px;" 
+                       @bind="totalLicensedUsers" @bind:event="oninput" 
+                       @onchange="OnLicensedUsersChanged" 
+                       placeholder="0" min="0" />
+            </div>
+        </div>
+        @if (isLoading)
+        {
+            <div class="mt-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+                    <span>Loading: @progressRecords records (@progressBytesDisplay / @totalBytesDisplay)</span>
+                </div>
+                <div class="progress mt-2" style="height: 8px;">
+                    <div class="progress-bar" role="progressbar" style="width: @progressPercent%;" aria-valuenow="@progressPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(loadError))
+        {
+            <div class="alert alert-danger mt-3" role="alert">
+                <span class="oi oi-warning" aria-hidden="true"></span> @loadError
+            </div>
+        }
+        @if (loadedCount > 0)
+        {
+            <div class="alert alert-success mt-3" role="alert">
+                <span class="oi oi-check" aria-hidden="true"></span> Loaded @loadedCount records, spanning from @minDate.ToShortDateString() to @maxDate.ToShortDateString().
+            </div>
+        }
+        else if (loadAttempted && !isLoading && string.IsNullOrEmpty(loadError))
+        {
+            <div class="alert alert-warning mt-3" role="alert">
+                <span class="oi oi-info" aria-hidden="true"></span> No valid records found in the selected file.
+            </div>
+        }
+    </div>
+</div>
+
+@if (loadedCount > 0)
+{
+    <Filters OnChanged="OnFiltersChanged" />
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="oi oi-people" aria-hidden="true"></span> Adoption
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@adoption.ActiveUsers</div>
+                                <div class="stat-label">Active Users</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@adoption.UsingChat</div>
+                                <div class="stat-label">Using Chat</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@adoption.UsingInline</div>
+                                <div class="stat-label">Using Inline</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@adoption.UsingCompletions</div>
+                                <div class="stat-label">Using Completions</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="oi oi-dashboard" aria-hidden="true"></span> Usage Totals
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@totals.Interactions.ToString("N0")</div>
+                                <div class="stat-label">Interactions</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@totals.Generations.ToString("N0")</div>
+                                <div class="stat-label">Generations</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@totals.Acceptances.ToString("N0")</div>
+                                <div class="stat-label">Acceptances</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-value">@totals.AcceptanceRate.ToString("P1")</div>
+                                <div class="stat-label">Acceptance Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <Charts RefreshKey="@refreshKey" />
+    </div>
+
+    <div class="mt-4">
+        <DataTable RefreshKey="@refreshKey" />
+    </div>
+}
+
+
+@code {
+		private int loadedCount;
+		private DateOnly minDate, maxDate;
+	private int refreshKey = 0;
+		private DataService.AdoptionStats adoption = new(0,0,0,0);
+		private DataService.Totals totals = new(0,0,0);
+		private string? loadError;
+		private bool isLoading = false;
+		private int progressRecords = 0;
+		private long progressBytes = 0;
+		private long totalBytes = 0;
+		private int progressPercent => totalBytes > 0 ? (int)Math.Min(100, Math.Round(progressBytes * 100.0 / totalBytes)) : 0;
+		private string progressBytesDisplay => FormatBytes(progressBytes);
+		private string totalBytesDisplay => totalBytes > 0 ? FormatBytes(totalBytes) : "unknown";
+		private bool loadAttempted = false;
+		private int totalLicensedUsers = 0;
+
+		private async Task OnFileSelected(InputFileChangeEventArgs e)
+		{
+				var file = e.File;
+				try
+				{
+					loadAttempted = true;
+					Console.WriteLine($"File selected: {file.Name}, Size: {file.Size} bytes");
+					isLoading = true; progressRecords = 0; progressBytes = 0; totalBytes = file.Size;
+					loadError = null;
+					StateHasChanged();
+					
+					var prog = new Progress<(int Records, long BytesRead)>(tuple => { 
+						Console.WriteLine($"Progress: {tuple.Records} records, {tuple.BytesRead} bytes");
+						progressRecords = tuple.Records; progressBytes = tuple.BytesRead; StateHasChanged(); 
+					});
+					// Allow up to 100 MB to cover typical NDJSON exports on Blazor Server
+					await using var stream = file.OpenReadStream(1024 * 1024 * 100);
+					Console.WriteLine("Starting to load NDJSON...");
+					await Data.LoadNdjsonAsync(stream, prog);
+					Console.WriteLine($"Loaded {Data.Records.Count} records");
+					loadError = null;
+					AfterLoad();
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"Error loading file: {ex}");
+					loadError = $"Failed to load file: {ex.Message}";
+				}
+				finally
+				{
+					isLoading = false;
+					StateHasChanged();
+				}
+		}
+
+		private async Task LoadSample()
+		{
+				loadAttempted = true;
+				// Try to load the workspace JSON at repo root
+				var baseDir = AppContext.BaseDirectory;
+				string MakePath(params string[] parts) => Path.GetFullPath(Path.Combine([baseDir, ..Enumerable.Repeat("..", 4), ..parts]));
+
+				// Known candidate sample files at repo root
+				var candidates = new[]
+				{
+					MakePath("72b2660a-bc2e-4182-94e9-1a4e76b778f9_1_da37129b6ab241fda4179249fc33f57a.json"),
+					MakePath("test-sample.json")
+				};
+
+				var path = candidates.FirstOrDefault(File.Exists);
+				if (path is not null)
+				{
+						try
+						{
+							isLoading = true; progressRecords = 0; progressBytes = 0; totalBytes = new FileInfo(path).Length;
+							loadError = null;
+							StateHasChanged();
+							var prog = new Progress<(int Records, long BytesRead)>(tuple => { progressRecords = tuple.Records; progressBytes = tuple.BytesRead; StateHasChanged(); });
+							await using var fs = File.OpenRead(path);
+							await Data.LoadNdjsonAsync(fs, prog);
+							AfterLoad();
+						}
+						catch (Exception ex)
+						{
+							loadError = $"Failed to load workspace file: {ex.Message}";
+						}
+						finally
+						{
+							isLoading = false;
+							StateHasChanged();
+						}
+				}
+				else
+				{
+                    loadError = $"Sample file not found. Tried: {string.Join(", ", candidates)}";
+                    StateHasChanged();
+                }
+		}
+
+	private void OnFiltersChanged()
+		{
+				adoption = Data.GetAdoption();
+			totals = Data.GetTotals();
+		refreshKey++;
+				StateHasChanged();
+		}
+
+		private void AfterLoad()
+		{
+				loadedCount = Data.Records.Count;
+				if (loadedCount > 0)
+				{
+						minDate = Data.Records.Min(r => r.Day);
+						maxDate = Data.Records.Max(r => r.Day);
+				}
+				OnFiltersChanged();
+		}
+
+		private static string FormatBytes(long bytes)
+		{
+			string[] units = ["B", "KB", "MB", "GB", "TB"]; int i = 0; double val = bytes;
+			while (val >= 1024 && i < units.Length - 1) { val /= 1024; i++; }
+			return $"{val:0.##} {units[i]}";
+		}
+
+		private void OnLicensedUsersChanged()
+		{
+			// Update the total licensed users in the data service
+			Data.SetTotalLicensedUsers(totalLicensedUsers);
+			// Recalculate adoption stats based on the new licensed users count
+			OnFiltersChanged();
+		}
+}

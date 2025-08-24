@@ -1,0 +1,77 @@
+@using copiloty_stats_viewer.Services
+@inject DataService Data
+@inject IJSRuntime JS
+
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">AI Activity Over Time</h5>
+        <canvas id="tsChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Feature Mix</h5>
+        <canvas id="featureChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Model Mix</h5>
+        <canvas id="modelChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Top Users by Generations</h5>
+        <canvas id="usersChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter]
+  public int RefreshKey { get; set; }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    // Always render charts after DOM is ready
+    await RenderAllAsync();
+  }
+
+  private async Task RenderAllAsync()
+  {
+    try
+    {
+      var ts = Data.GetTimeSeries().ToList();
+      var labels = ts.Select(p => p.Day.ToString("yyyy-MM-dd")).ToArray();
+      var interactions = ts.Select(p => p.Interactions).ToArray();
+      var generations = ts.Select(p => p.Generations).ToArray();
+      var acceptances = ts.Select(p => p.Acceptances).ToArray();
+      await JS.InvokeVoidAsync("copilotCharts.timeSeries", "tsChart", labels, interactions, generations, acceptances);
+
+      var features = Data.FeatureMix().Take(10).ToList();
+      await JS.InvokeVoidAsync("copilotCharts.pieMix", "featureChart", 
+          features.Select(f => DataService.GetFriendlyFeatureName(f.Feature)).ToArray(), 
+          features.Select(f => f.Generations).ToArray());
+
+      var models = Data.ModelMix().Take(10).ToList();
+      await JS.InvokeVoidAsync("copilotCharts.pieMix", "modelChart", models.Select(m=>m.Model).ToArray(), models.Select(m=>m.Generations).ToArray());
+
+      var users = Data.TopUsers().ToList();
+      await JS.InvokeVoidAsync("copilotCharts.barMix", "usersChart", users.Select(u=>u.User).ToArray(), users.Select(u=>u.Generations).ToArray(), "Generations");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error rendering charts: {ex.Message}");
+    }
+  }
+}

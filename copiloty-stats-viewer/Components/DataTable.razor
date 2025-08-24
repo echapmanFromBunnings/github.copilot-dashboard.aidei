@@ -1,0 +1,200 @@
+@using copiloty_stats_viewer.Models
+@using copiloty_stats_viewer.Services
+@inject DataService Data
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <strong>AIDEI Metrics</strong>
+      <small class="text-muted">AI Development Enablement Index</small>
+    </div>
+    
+    <!-- AIDEI Metrics Display -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-2 offset-md-1">
+        <div class="stat-card border-primary" title="Composite AI Development Enablement Index score combining Adoption Rate (40%), Acceptance Rate (40%), and Licensed vs Engaged Rate (20%). Scale: 0 to 100">
+          <div class="stat-value text-primary">@((aideiMetrics.AIDEIScore * 100).ToString("F4"))</div>
+          <div class="stat-label">AIDEI Score</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="stat-card" title="Percentage of total licensed users who have any Copilot activity (interactions or code generations)">
+          <div class="stat-value">@aideiMetrics.AdoptionRate.ToString("P1")</div>
+          <div class="stat-label">Adoption Rate</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="stat-card" title="Percentage of AI code suggestions that developers accepted and used in their code">
+          <div class="stat-value">@aideiMetrics.AcceptanceRate.ToString("P1")</div>
+          <div class="stat-label">Acceptance Rate</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="stat-card" title="Percentage of total licensed users who have meaningful daily engagement (>3 activities on at least 2 days) representing true productivity usage">
+          <div class="stat-value">@aideiMetrics.LicensedVsEngagedRate.ToString("P1")</div>
+          <div class="stat-label">Licensed vs Engaged</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="stat-card" title="Letter grade representation of AIDEI Score: A+ (90+), A (80+), B+ (70+), B (60+), C+ (50+), C (40+), D (30+), F (below 30)">
+          <div class="stat-value">@GetAIDEIGrade()</div>
+          <div class="stat-label">AIDEI Grade</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Records (Grouped by User)</strong>
+      <input class="form-control w-auto" style="min-width:260px" placeholder="Search user/login..." @bind="search" />
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr>
+            <th role="button" @onclick="() => SortBy(nameof(CopilotRecord.Day))">Day @SortIcon(nameof(CopilotRecord.Day))</th>
+            <th role="button" @onclick="() => SortBy(nameof(CopilotRecord.UserLogin))">User @SortIcon(nameof(CopilotRecord.UserLogin))</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("Interactions")'>Interactions @SortIcon("Interactions")</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("Generations")'>Generations @SortIcon("Generations")</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("Acceptances")'>Acceptances @SortIcon("Acceptances")</th>
+            <th>Features</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var userGroup in GetUserGroups())
+          {
+            <!-- User group header row (clickable to expand/collapse) -->
+            <tr class="table-secondary" role="button" @onclick="() => ToggleUserGroup(userGroup.User)" style="cursor: pointer;">
+              <td colspan="2">
+                <strong>
+                  <span class="@(IsUserGroupExpanded(userGroup.User) ? "oi oi-chevron-bottom" : "oi oi-chevron-right")" aria-hidden="true"></span>
+                  <span class="oi oi-person ms-1" aria-hidden="true"></span> @userGroup.User 
+                  <small class="text-muted">(@userGroup.Records.Count() records)</small>
+                </strong>
+              </td>
+              <td class="text-end"><strong>@userGroup.TotalInteractions.ToString("N0")</strong></td>
+              <td class="text-end"><strong>@userGroup.TotalGenerations.ToString("N0")</strong></td>
+              <td class="text-end"><strong>@userGroup.TotalAcceptances.ToString("N0")</strong></td>
+              <td>
+                <small class="text-muted">
+                  @string.Join(", ", userGroup.Records.SelectMany(r => r.TotalsByFeature.Select(f => DataService.GetFriendlyFeatureName(f.Feature))).Distinct())
+                </small>
+              </td>
+            </tr>
+            
+            <!-- Individual day records for this user (collapsible) -->
+            @if (IsUserGroupExpanded(userGroup.User))
+            {
+              @foreach (var r in userGroup.Records.OrderByDescending(x => x.Day))
+              {
+                <tr>
+                  <td class="ps-4">@r.Day.ToString("yyyy-MM-dd")</td>
+                  <td class="text-muted">@r.UserLogin</td>
+                  <td class="text-end">@r.UserInitiatedInteractionCount.ToString("N0")</td>
+                  <td class="text-end">@r.CodeGenerationActivityCount.ToString("N0")</td>
+                  <td class="text-end">@r.CodeAcceptanceActivityCount.ToString("N0")</td>
+                  <td>
+                    <small>@string.Join(", ", r.TotalsByFeature.Select(f=>DataService.GetFriendlyFeatureName(f.Feature)).Distinct())</small>
+                  </td>
+                </tr>
+              }
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@code {
+    private string search = string.Empty;
+    private string sort = "TotalGenerations";
+    private bool sortDesc = true;
+    private HashSet<string> expandedUsers = new();
+    private DataService.AIDEIMetrics aideiMetrics = new(0, 0, 0, 0, 0);
+
+    [Parameter] public int RefreshKey { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        aideiMetrics = Data.GetAIDEI();
+    }
+
+    private string GetAIDEIGrade()
+    {
+        var score = aideiMetrics.AIDEIScore;
+        return score switch
+        {
+            >= 0.90 => "A+",
+            >= 0.80 => "A",
+            >= 0.70 => "B+",
+            >= 0.60 => "B",
+            >= 0.50 => "C+",
+            >= 0.40 => "C",
+            >= 0.30 => "D",
+            _ => "F"
+        };
+    }
+
+    private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances);
+
+    private void ToggleUserGroup(string user)
+    {
+        if (expandedUsers.Contains(user))
+        {
+            expandedUsers.Remove(user);
+        }
+        else
+        {
+            expandedUsers.Add(user);
+        }
+    }
+
+    private bool IsUserGroupExpanded(string user)
+    {
+        return expandedUsers.Contains(user);
+    }
+
+    private IEnumerable<UserGroup> GetUserGroups()
+    {
+        var q = Data.GetFiltered();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            q = q.Where(r => (r.UserLogin?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        var userGroups = q.GroupBy(r => r.UserLogin)
+            .Select(g => new UserGroup(
+                g.Key,
+                g,
+                g.Sum(r => r.UserInitiatedInteractionCount),
+                g.Sum(r => r.CodeGenerationActivityCount),
+                g.Sum(r => r.CodeAcceptanceActivityCount)
+            ));
+
+        userGroups = sort switch
+        {
+            nameof(CopilotRecord.UserLogin) => sortDesc ? userGroups.OrderByDescending(g => g.User) : userGroups.OrderBy(g => g.User),
+            "Interactions" or "TotalInteractions" => sortDesc ? userGroups.OrderByDescending(g => g.TotalInteractions) : userGroups.OrderBy(g => g.TotalInteractions),
+            "Generations" or "TotalGenerations" => sortDesc ? userGroups.OrderByDescending(g => g.TotalGenerations) : userGroups.OrderBy(g => g.TotalGenerations),
+            "Acceptances" or "TotalAcceptances" => sortDesc ? userGroups.OrderByDescending(g => g.TotalAcceptances) : userGroups.OrderBy(g => g.TotalAcceptances),
+            _ => sortDesc ? userGroups.OrderByDescending(g => g.Records.Max(r => r.Day)) : userGroups.OrderBy(g => g.Records.Max(r => r.Day))
+        };
+
+        return userGroups;
+    }
+
+    private void SortBy(string key)
+    {
+        if (sort == key) sortDesc = !sortDesc; else { sort = key; sortDesc = true; }
+    }
+
+    private RenderFragment SortIcon(string key) => builder =>
+    {
+        var isActive = sort == key || (key == "Interactions" && sort == "TotalInteractions") || 
+                      (key == "Generations" && sort == "TotalGenerations") || 
+                      (key == "Acceptances" && sort == "TotalAcceptances");
+        if (!isActive) return;
+        var icon = sortDesc ? "▼" : "▲";
+        builder.AddContent(0, icon);
+    };
+}

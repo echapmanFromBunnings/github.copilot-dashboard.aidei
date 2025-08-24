@@ -1,0 +1,75 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using copiloty_stats_viewer.Services
+@inject DataService Data
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="form-label">From</label>
+        <InputDate TValue="DateOnly?" @bind-Value="Data.FromDate" class="form-control" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">To</label>
+        <InputDate TValue="DateOnly?" @bind-Value="Data.ToDate" class="form-control" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Users</label>
+        <input class="form-control" placeholder="Comma-separated" @bind="users" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Features</label>
+        <input class="form-control" placeholder="e.g., code_completion, chat" @bind="features" />
+        <small class="form-text text-muted">Available: code_completion, chat, chat_inline</small>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label">Models</label>
+        <input class="form-control" placeholder="Comma-separated" @bind="models" />
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary" @onclick="Apply">Apply Filters</button>
+        <button class="btn btn-outline-secondary ms-2" @onclick="Clear">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+    
+    private string users { get; set; } = string.Empty;
+    private string features { get; set; } = string.Empty;
+    private string models { get; set; } = string.Empty;
+
+    private void Apply()
+    {
+        SyncSet(Data.SelectedUsers, users);
+        SyncSet(Data.SelectedFeatures, features);
+        SyncSet(Data.SelectedModels, models);
+        StateHasChanged();
+        OnChanged?.Invoke();
+    }
+    private void Clear()
+    {
+  Data.FromDate = null;
+  Data.ToDate = null;
+        Data.SelectedUsers.Clear();
+        Data.SelectedFeatures.Clear();
+        Data.SelectedModels.Clear();
+        users = features = models = string.Empty;
+        StateHasChanged();
+        OnChanged?.Invoke();
+    }
+
+    [Parameter] public Action? OnChanged { get; set; }
+
+    private static void SyncSet(HashSet<string> set, string input)
+    {
+        set.Clear();
+        foreach (var p in (input ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            set.Add(p);
+        }
+    }
+
+    
+}
