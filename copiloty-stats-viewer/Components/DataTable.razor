@@ -17,6 +17,8 @@
             <th class="text-end" role="button" @onclick='() => SortBy("Interactions")'>Interactions @SortIcon("Interactions")</th>
             <th class="text-end" role="button" @onclick='() => SortBy("Generations")'>Generations @SortIcon("Generations")</th>
             <th class="text-end" role="button" @onclick='() => SortBy("Acceptances")'>Acceptances @SortIcon("Acceptances")</th>
+            <th>Most Used Language</th>
+            <th>Most Used Model</th>
             <th>Features</th>
           </tr>
         </thead>
@@ -35,6 +37,8 @@
               <td class="text-end"><strong>@userGroup.TotalInteractions.ToString("N0")</strong></td>
               <td class="text-end"><strong>@userGroup.TotalGenerations.ToString("N0")</strong></td>
               <td class="text-end"><strong>@userGroup.TotalAcceptances.ToString("N0")</strong></td>
+              <td><strong>@userGroup.MostUsedLanguage</strong></td>
+              <td><strong>@userGroup.MostUsedModel</strong></td>
               <td>
                 <small class="text-muted">
                   @string.Join(", ", userGroup.Records.SelectMany(r => r.TotalsByFeature.Select(f => DataService.GetFriendlyFeatureName(f.Feature))).Distinct())
@@ -53,6 +57,8 @@
                   <td class="text-end">@r.UserInitiatedInteractionCount.ToString("N0")</td>
                   <td class="text-end">@r.CodeGenerationActivityCount.ToString("N0")</td>
                   <td class="text-end">@r.CodeAcceptanceActivityCount.ToString("N0")</td>
+                  <td></td>
+                  <td></td>
                   <td>
                     <small>@string.Join(", ", r.TotalsByFeature.Select(f=>DataService.GetFriendlyFeatureName(f.Feature)).Distinct())</small>
                   </td>
@@ -74,7 +80,7 @@
 
     [Parameter] public int RefreshKey { get; set; }
 
-    private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances);
+    private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances, string MostUsedLanguage, string MostUsedModel);
 
     private void ToggleUserGroup(string user)
     {
@@ -107,7 +113,9 @@
                 g,
                 g.Sum(r => r.UserInitiatedInteractionCount),
                 g.Sum(r => r.CodeGenerationActivityCount),
-                g.Sum(r => r.CodeAcceptanceActivityCount)
+                g.Sum(r => r.CodeAcceptanceActivityCount),
+                Data.GetMostUsedLanguageForUser(g.Key),
+                Data.GetMostUsedModelForUser(g.Key)
             ));
 
         userGroups = sort switch

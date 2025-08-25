@@ -1,4 +1,5 @@
 @using copiloty_stats_viewer.Services
+@using System.Collections.Generic
 @inject DataService Data
 @inject IJSRuntime JS
 
@@ -35,6 +36,42 @@
       </div>
     </div>
   </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">
+          Activity-Based Acceptance Rate
+          <i class="oi oi-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top" 
+             title="Shows acceptance rate based on activity sessions over time. This measurement differs from GitHub's official dashboard which uses individual suggestion counts."></i>
+        </h5>
+        <canvas id="acceptanceRateChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Model Usage Per Day</h5>
+        <canvas id="modelUsageChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Language Usage Per Day</h5>
+        <canvas id="languageUsageChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Model Acceptance by Language</h5>
+        <canvas id="modelAcceptanceChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
 </div>
 
 @code {
@@ -68,6 +105,59 @@
 
       var users = Data.TopUsers().ToList();
       await JS.InvokeVoidAsync("copilotCharts.barMix", "usersChart", users.Select(u=>u.User).ToArray(), users.Select(u=>u.Generations).ToArray(), "Generations");
+
+      // Code completions acceptance rate over time
+      var acceptanceRates = ts.Select(p => p.Generations > 0 ? (double)p.Acceptances / p.Generations * 100 : 0).ToArray();
+      await JS.InvokeVoidAsync("copilotCharts.lineChart", "acceptanceRateChart", labels, acceptanceRates, "Acceptance Rate (%)", "#28a745");
+
+      // Model usage per day
+      var modelUsageData = Data.GetModelUsagePerDay().ToList();
+      if (modelUsageData.Any())
+      {
+        var modelUsageLabels = modelUsageData.Select(d => d.Day.ToString("yyyy-MM-dd")).ToArray();
+        var allModels = modelUsageData.SelectMany(d => d.ModelUsage.Keys)
+          .Distinct().ToArray();
+        // Create a list of datasets for JavaScript
+        var modelDatasets = new List<object>();
+        foreach (var model in allModels)
+        {
+          modelDatasets.Add(new
+          {
+            Label = model,
+            Data = modelUsageData.Select(d => d.ModelUsage.GetValueOrDefault(model, 0)).ToArray()
+          });
+        }
+        await JS.InvokeVoidAsync("copilotCharts.stackedLine", "modelUsageChart", modelUsageLabels, modelDatasets.ToArray());
+      }
+
+      // Language usage per day  
+      var languageUsageData = Data.GetLanguageUsagePerDay().ToList();
+      if (languageUsageData.Any())
+      {
+        var languageUsageLabels = languageUsageData.Select(d => d.Day.ToString("yyyy-MM-dd")).ToArray();
+        var allLanguages = languageUsageData.SelectMany(d => d.LanguageUsage.Keys)
+          .Distinct().Take(10).ToArray(); // Top 10 languages
+        // Create a list of datasets for JavaScript
+        var languageDatasets = new List<object>();
+        foreach (var lang in allLanguages)
+        {
+          languageDatasets.Add(new
+          {
+            Label = lang,
+            Data = languageUsageData.Select(d => d.LanguageUsage.GetValueOrDefault(lang, 0)).ToArray()
+          });
+        }
+        await JS.InvokeVoidAsync("copilotCharts.stackedLine", "languageUsageChart", languageUsageLabels, languageDatasets.ToArray());
+      }
+
+      // Model acceptance by language (heatmap-style)
+      var modelAcceptanceData = Data.GetModelAcceptanceByLanguage()
+        .GroupBy(x => x.Language)
+        .Take(10) // Top 10 languages
+        .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Model, x => x.AcceptedSuggestions));
+      var languages = modelAcceptanceData.Keys.ToArray();
+      var modelsForAcceptance = modelAcceptanceData.SelectMany(kvp => kvp.Value.Keys).Distinct().ToArray();
+      await JS.InvokeVoidAsync("copilotCharts.groupedBar", "modelAcceptanceChart", languages, modelsForAcceptance, modelAcceptanceData, "Accepted Suggestions");
     }
     catch (Exception ex)
     {

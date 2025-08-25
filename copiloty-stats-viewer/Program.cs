@@ -6,7 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddControllers();
 builder.Services.AddSingleton<DataService>();
+builder.Services.AddScoped<PdfReportService>();
 
 // Enable detailed errors for Blazor circuits
 builder.Services.AddServerSideBlazor(options =>
@@ -29,7 +31,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseAntiforgery();
-app.MapRazorComponents<App>()
+app.MapControllers();
+app.MapRazorComponents<copiloty_stats_viewer.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();

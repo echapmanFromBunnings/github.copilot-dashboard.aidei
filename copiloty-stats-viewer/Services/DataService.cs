@@ -39,6 +39,76 @@ public sealed class DataService
 
     public IReadOnlyList<CopilotRecord> Records => _records;
 
+    // Language name mapping for user-friendly display
+    public static string GetFriendlyLanguageName(string language)
+    {
+        return language?.ToLowerInvariant() switch
+        {
+            "javascript" => "JavaScript",
+            "typescript" => "TypeScript", 
+            "typescriptreact" => "TypeScript React",
+            "javascriptreact" => "JavaScript React",
+            "powershell" => "PowerShell",
+            "python" => "Python",
+            "csharp" => "C#",
+            "java" => "Java",
+            "cpp" => "C++",
+            "c" => "C",
+            "php" => "PHP",
+            "ruby" => "Ruby",
+            "go" => "Go",
+            "rust" => "Rust",
+            "swift" => "Swift",
+            "kotlin" => "Kotlin",
+            "scala" => "Scala",
+            "html" => "HTML",
+            "css" => "CSS",
+            "scss" => "SCSS",
+            "less" => "LESS",
+            "json" => "JSON",
+            "xml" => "XML",
+            "yaml" => "YAML",
+            "yml" => "YAML",
+            "markdown" => "Markdown",
+            "sql" => "SQL",
+            "dockerfile" => "Dockerfile",
+            "sh" => "Shell Script",
+            "bash" => "Bash",
+            "zsh" => "Zsh",
+            "fish" => "Fish",
+            "dotenv" => ".env",
+            "pip-requirements" => "Requirements.txt",
+            "github-actions-workflow" => "GitHub Actions",
+            "oracle-sql" => "Oracle SQL",
+            "mermaid" => "Mermaid",
+            "vue" => "Vue.js",
+            "svelte" => "Svelte",
+            "angular" => "Angular",
+            "react" => "React",
+            "unknown" => "Unknown",
+            _ => language ?? "Unknown"
+        };
+    }
+
+    // Model name mapping for user-friendly display
+    public static string GetFriendlyModelName(string model)
+    {
+        return model?.ToLowerInvariant() switch
+        {
+            "gpt-4" => "GPT-4",
+            "gpt-4.1" => "GPT-4.1",
+            "gpt-4o" => "GPT-4o",
+            "claude-3.5-sonnet" => "Claude 3.5 Sonnet",
+            "claude-3.7-sonnet" => "Claude 3.7 Sonnet",
+            "claude-4.0-sonnet" => "Claude 4.0 Sonnet",
+            "claude-sonnet" => "Claude Sonnet",
+            "claude-haiku" => "Claude Haiku",
+            "claude-opus" => "Claude Opus",
+            "unknown" => "Unknown",
+            _ => model ?? "Unknown"
+        };
+    }
+
     // Feature name mapping for user-friendly display
     public static string GetFriendlyFeatureName(string feature)
     {
@@ -158,9 +228,118 @@ public sealed class DataService
     {
         return GetFiltered()
             .SelectMany(r => r.TotalsByModelFeature)
-            .GroupBy(m => m.Model)
+            .GroupBy(m => string.IsNullOrWhiteSpace(m.Model) ? "Unknown" : m.Model)
             .Select(g => (Model: g.Key, Generations: g.Sum(m => m.CodeGenerationActivityCount)))
             .OrderByDescending(t => t.Generations);
+    }
+
+    public (string Model, int Generations) GetMostUsedModel()
+    {
+        return ModelMix().FirstOrDefault();
+    }
+
+    public IEnumerable<(DateOnly Day, Dictionary<string, int> ModelUsage)> GetModelUsagePerDay()
+    {
+        var filtered = GetFiltered();
+        
+        var result = filtered
+            .GroupBy(r => r.Day)
+            .Select(dayGroup => new
+            {
+                Day = dayGroup.Key,
+                ModelUsage = dayGroup
+                    .SelectMany(r => r.TotalsByModelFeature)
+                    .Where(tm => !string.IsNullOrWhiteSpace(tm.Model) && tm.CodeGenerationActivityCount > 0) // Filter out empty models and zero activity
+                    .GroupBy(tm => tm.Model)
+                    .ToDictionary(
+                        g => GetFriendlyModelName(g.Key),
+                        g => g.Sum(tm => tm.CodeGenerationActivityCount)
+                    )
+            })
+            .Where(x => x.ModelUsage.Any()) // Only include days with actual model usage
+            .OrderBy(x => x.Day)
+            .Select(x => (x.Day, x.ModelUsage));
+
+        return result;
+    }
+
+    public IEnumerable<(DateOnly Day, Dictionary<string, int> LanguageUsage)> GetLanguageUsagePerDay()
+    {
+        var filtered = GetFiltered();
+        
+        var result = filtered
+            .GroupBy(r => r.Day)
+            .Select(dayGroup => new
+            {
+                Day = dayGroup.Key,
+                LanguageUsage = dayGroup
+                    .SelectMany(r => r.TotalsByLanguageFeature)
+                    .Where(lf => !string.IsNullOrWhiteSpace(lf.Language) && lf.CodeGenerationActivityCount > 0) // Filter out empty languages and zero activity
+                    .GroupBy(lf => lf.Language)
+                    .ToDictionary(
+                        g => GetFriendlyLanguageName(g.Key),
+                        g => g.Sum(lf => lf.CodeGenerationActivityCount)
+                    )
+            })
+            .Where(x => x.LanguageUsage.Any()) // Only include days with actual language usage
+            .OrderBy(x => x.Day)
+            .Select(x => (x.Day, x.LanguageUsage));
+
+        return result;
+    }
+
+    public IEnumerable<(string Language, string Model, int AcceptedSuggestions)> GetModelAcceptanceByLanguage()
+    {
+        var filtered = GetFiltered();
+        
+        var result = filtered
+            .SelectMany(r => r.TotalsByLanguageModel)
+            .Where(lm => !string.IsNullOrWhiteSpace(lm.Language) && 
+                        !string.IsNullOrWhiteSpace(lm.Model) && 
+                        lm.CodeAcceptanceActivityCount > 0) // Filter out empty values and zero activity
+            .GroupBy(lm => new {
+                Language = GetFriendlyLanguageName(lm.Language),
+                Model = GetFriendlyModelName(lm.Model)
+            })
+            .Select(g => (
+                Language: g.Key.Language,
+                Model: g.Key.Model,
+                AcceptedSuggestions: g.Sum(lm => lm.CodeAcceptanceActivityCount)
+            ))
+            .OrderBy(x => x.Language)
+            .ThenByDescending(x => x.AcceptedSuggestions);
+
+        return result;
+    }
+
+    public string GetMostUsedLanguageForUser(string userLogin)
+    {
+        var userRecords = GetFiltered().Where(r => r.UserLogin == userLogin);
+        
+        var languageUsage = userRecords
+            .SelectMany(r => r.TotalsByLanguageFeature)
+            .Where(lf => !string.IsNullOrEmpty(lf.Language) && lf.CodeGenerationActivityCount > 0) // Filter out empty languages and zero activity
+            .GroupBy(lf => lf.Language)
+            .Select(g => new { Language = g.Key, Generations = g.Sum(lf => lf.CodeGenerationActivityCount) })
+            .OrderByDescending(x => x.Generations)
+            .FirstOrDefault();
+
+        return GetFriendlyLanguageName(languageUsage?.Language ?? "Unknown");
+    }
+
+    public string GetMostUsedModelForUser(string userLogin)
+    {
+        var userRecords = GetFiltered().Where(r => r.UserLogin == userLogin);
+        
+        var modelUsage = userRecords
+            .SelectMany(r => r.TotalsByModelFeature)
+            .Where(mf => !string.IsNullOrEmpty(mf.Model) && mf.CodeGenerationActivityCount > 0) // Filter out empty models and zero activity
+            .GroupBy(mf => mf.Model)
+            .Select(g => new { Model = g.Key, Generations = g.Sum(mf => mf.CodeGenerationActivityCount) })
+            .OrderByDescending(x => x.Generations)
+            .FirstOrDefault();
+
+        return GetFriendlyModelName(modelUsage?.Model ?? "Unknown");
     }
 
     public sealed record AdoptionStats(int ActiveUsers, int UsingChat, int UsingInline, int UsingCompletions);
@@ -175,8 +354,18 @@ public sealed class DataService
         return new AdoptionStats(activeUsers, usingChat, usingInline, usingCompletions);
     }
 
+    /// <summary>
+    /// Represents total metrics with Activity-Based acceptance rate calculation.
+    /// The AcceptanceRate property uses activity session counts (not individual suggestions).
+    /// This differs from GitHub's official Suggestion-Based metrics which count individual suggestions.
+    /// </summary>
     public sealed record Totals(int Interactions, int Generations, int Acceptances)
     {
+        /// <summary>
+        /// Activity-Based Acceptance Rate: Percentage of code generation activities that resulted in acceptance activities.
+        /// Formula: Acceptances / Generations
+        /// Note: This typically differs from GitHub's Suggestion-Based rate which counts individual suggestions.
+        /// </summary>
         public double AcceptanceRate => Generations > 0 ? (double)Acceptances / Generations : 0d;
     }
 
@@ -195,9 +384,15 @@ public sealed class DataService
     public int PowerUserActiveDaysThreshold { get; set; } = 3; // 3+ active days
     public int EngagementThreshold { get; set; } = 5; // 5+ acceptances for engagement
 
-    // AIDEI (AI Development Enablement Index) calculations
+    /// <summary>
+    /// AI Development Enablement Index metrics with Activity-Based calculations.
+    /// AcceptanceRate uses activity session counts, not individual suggestion counts.
+    /// </summary>
     public sealed record AIDEIMetrics(
         double AdoptionRate,
+        /// <summary>
+        /// Activity-Based Acceptance Rate for AIDEI calculation
+        /// </summary>
         double AcceptanceRate, 
         double LicensedVsEngagedRate,
         double UsageRate,

@@ -9,7 +9,15 @@
 
 <PageTitle>Copilot Stats</PageTitle>
 
-<h1>Copilot Stats Explorer</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Copilot Stats Explorer</h1>
+    @if (loadedCount > 0)
+    {
+        <a href="/api/pdf/download?costPerHour=@costPerHour&totalLicensedUsers=@totalLicensedUsers" class="btn btn-outline-primary" target="_blank">
+            <span class="oi oi-document" aria-hidden="true"></span> Export PDF
+        </a>
+    }
+</div>
 
 <div class="card mb-4">
     <div class="card-header">
@@ -90,6 +98,20 @@
                                min="1" max="50" step="1"
                                data-bs-toggle="tooltip" 
                                title="Minimum number of code acceptances required to consider a user as engaged." />
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Cost per Developer Hour</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" 
+                                   @bind="costPerHour" 
+                                   @oninput="OnCostPerHourChanged"
+                                   min="1" max="500" step="1"
+                                   data-bs-toggle="tooltip" 
+                                   title="Average cost per developer hour including salary, benefits, and overhead. Used for ROI and cost savings calculations." />
+                        </div>
                     </div>
                 </div>
                 <div class="row mt-2">
@@ -194,6 +216,16 @@
                 </div>
             </div>
         </div>
+        <div class="row mb-4">
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Estimated monetary value of developer productivity saved through Copilot usage. Calculated as: Time Saved × Cost per Hour">
+                    <div class="stat-value">$@(((engineeringMetrics.EstimatedTimeSavedHours * costPerHour)).ToString("N0"))</div>
+                    <div class="stat-label">Productivity Cost Savings</div>
+                    <small class="stat-description">@(engineeringMetrics.EstimatedTimeSavedHours.ToString("N0"))h × $@(costPerHour)/hr</small>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- AIDEI Detailed Metrics Section -->
@@ -221,9 +253,9 @@
           </div>
           <div class="col-md-2">
             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
-                 title="Percentage of AI code suggestions that developers accepted and used in their code">
+                 title="Activity-Based Acceptance Rate: Measures acceptance at the activity session level. This differs from GitHub's official Suggestion-Based metrics which count individual suggestions and partial acceptances.">
               <div class="stat-value">@aideiMetrics.AcceptanceRate.ToString("P1")</div>
-              <div class="stat-label">Acceptance Rate</div>
+              <div class="stat-label">Activity-Based Rate</div>
             </div>
           </div>
           <div class="col-md-2">
@@ -340,6 +372,14 @@
                         <small class="text-muted">Productivity gain</small>
                     </div>
                 </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="The AI model with the highest number of code generations across all users. Shows which model is most utilized in your organization.">
+                        <div class="stat-value">@(mostUsedModel.Model)</div>
+                        <div class="stat-label">Most Used Model</div>
+                        <small class="text-muted">@(mostUsedModel.Generations.ToString("N0")) generations</small>
+                    </div>
+                </div>
             </div>
         }
     </div>
@@ -420,9 +460,10 @@
                         </div>
                         <div class="col-6 col-md-3 mb-3">
                             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
-                                 title="Percentage of AI code suggestions that were accepted by developers (Acceptances ÷ Generations). Higher rates indicate more relevant suggestions.">
+                                 title="Activity-Based Acceptance Rate: Percentage of code generation activities that resulted in code acceptance (Activity Sessions). This differs from GitHub's Suggestion-Based rate which counts individual suggestions. Activity-based rates are typically lower as one session may contain multiple suggestions.">
                                 <div class="stat-value">@totals.AcceptanceRate.ToString("P1")</div>
-                                <div class="stat-label">Acceptance Rate</div>
+                                <div class="stat-label">Activity-Based Rate</div>
+                                <small class="text-muted">Session-level metric</small>
                             </div>
                         </div>
                     </div>
@@ -433,6 +474,47 @@
 
     <div class="mt-4">
         <Charts RefreshKey="@refreshKey" />
+    </div>
+
+    <!-- Metrics Methodology Note -->
+    <div class="mt-4 mb-4">
+        <button class="btn btn-outline-info mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#methodologyNote" aria-expanded="false" aria-controls="methodologyNote">
+            <i class="oi oi-info" aria-hidden="true"></i> Metrics Methodology Note
+        </button>
+        <div class="collapse" id="methodologyNote">
+            <div class="alert alert-info" role="alert">
+                <h6 class="alert-heading">
+                    <i class="oi oi-info" aria-hidden="true"></i> About Our Metrics Methodology
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>This Dashboard (Activity-Based):</strong></p>
+                        <ul class="mb-2">
+                            <li>Measures interaction <strong>sessions</strong> or <strong>activity periods</strong></li>
+                            <li>Uses GitHub's Usage API data</li>
+                            <li>One activity can contain multiple suggestions</li>
+                            <li>Typically shows <strong>lower</strong> acceptance rates</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>GitHub Official Dashboard (Suggestion-Based):</strong></p>
+                        <ul class="mb-2">
+                            <li>Measures <strong>individual</strong> code suggestions</li>
+                            <li>Uses GitHub's Metrics API data</li>
+                            <li>Includes partial acceptances as full acceptances</li>
+                            <li>Typically shows <strong>higher</strong> acceptance rates</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="mb-0">
+                    <small class="text-muted">
+                        <strong>Example:</strong> If a user receives 5 suggestions in one coding session and accepts 3 of them:
+                        Activity-Based = 1 generation activity, 1 acceptance activity = 100% rate | 
+                        Suggestion-Based = 5 suggestions, 3 acceptances = 60% rate
+                    </small>
+                </p>
+            </div>
+        </div>
     </div>
 
     <div class="mt-4">
@@ -449,6 +531,7 @@
 	private DataService.Totals totals = new(0,0,0);
 	private DataService.AIDEIMetrics aideiMetrics = new(0,0,0,0,0);
 	private DataService.EngineeringMetrics engineeringMetrics = new(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+	private (string Model, int Generations) mostUsedModel = ("", 0);
 	private string? loadError;
 	private bool isLoading = false;
 	private int progressRecords = 0;
@@ -517,7 +600,23 @@
 				_ = Task.Run(OnSettingsChanged);
 			}
 		}
-	}		private async Task OnFileSelected(InputFileChangeEventArgs e)
+	}
+	
+	private int _costPerHour = 90;
+	private int costPerHour
+	{
+		get => _costPerHour;
+		set
+		{
+			if (_costPerHour != value)
+			{
+				_costPerHour = value;
+				_ = Task.Run(OnSettingsChanged);
+			}
+		}
+	}
+	
+	private async Task OnFileSelected(InputFileChangeEventArgs e)
 		{
 				var file = e.File;
 				try
@@ -602,6 +701,7 @@
 			totals = Data.GetTotals();
 			aideiMetrics = Data.GetAIDEI();
 			engineeringMetrics = Data.GetEngineeringMetrics();
+			mostUsedModel = Data.GetMostUsedModel();
 		refreshKey++;
 				StateHasChanged();
 				// Reinitialize tooltips after state change
@@ -705,6 +805,15 @@
 				await OnSettingsChanged();
 			}
 		}
+		
+		private async Task OnCostPerHourChanged(ChangeEventArgs e)
+		{
+			if (int.TryParse(e.Value?.ToString(), out int value))
+			{
+				costPerHour = value;
+				await OnSettingsChanged();
+			}
+		}
 }
 
 <script>
@@ -738,3 +847,4 @@
         setTimeout(initializeTooltips, 100);
     });
 </script>
+

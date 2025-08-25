@@ -8,4 +8,8 @@
   <AssemblyName>copiloty_stats_viewer</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2024.7.3" />
+  </ItemGroup>
+
 </Project>

@@ -38,6 +38,89 @@ window.copilotCharts = (function(){
     const colors = labels.map((_, i) => base[i % base.length]);
       const data = { labels, datasets: [{ data: counts, backgroundColor: colors }] };
     ensureChart(id, 'doughnut', data, { responsive: true, plugins: { legend: { position: 'right' }}, cutout: '60%' });
+    },
+    lineChart: function(id, labels, data, label, color){
+      const chartData = {
+        labels,
+        datasets: [{
+          label: label,
+          data: data,
+          borderColor: color,
+          backgroundColor: color + '20',
+          pointRadius: 2,
+          tension: 0.25,
+          fill: true
+        }]
+      };
+      ensureChart(id, 'line', chartData, { 
+        responsive: true, 
+        plugins: { legend: { display: false }}, 
+        scales: { 
+          x: { grid: { display: false } }, 
+          y: { 
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            beginAtZero: true,
+            max: 100
+          } 
+        } 
+      });
+    },
+    stackedLine: function(id, labels, datasets){
+      const colors = ['#005358','#2b6c70','#4b8588','#7da8ab','#0b7d77','#3d8b8e','#9cc7c9','#1f6b6f','#74a4a6','#b5d3d4'];
+      const chartData = {
+        labels,
+        // Blazor's JS interop serializes object property names to camelCase by default.
+        // Support both PascalCase (C# anonymous object) and camelCase (serialized) keys.
+        datasets: datasets.map((dataset, i) => ({
+          label: (dataset && (dataset.Label ?? dataset.label)) ?? 'Unknown',
+          data: (dataset && (dataset.Data ?? dataset.data)) ?? [],
+          borderColor: colors[i % colors.length],
+          backgroundColor: colors[i % colors.length] + '30',
+          pointRadius: 0,
+          tension: 0.25,
+          fill: true
+        }))
+      };
+      ensureChart(id, 'line', chartData, { 
+        responsive: true, 
+        plugins: { legend: { position: 'bottom' }}, 
+        scales: { 
+          x: { 
+            grid: { display: false },
+            stacked: false
+          }, 
+          y: { 
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            beginAtZero: true,
+            stacked: false
+          } 
+        } 
+      });
+    },
+    groupedBar: function(id, languages, models, data, label){
+      const colors = ['#005358','#2b6c70','#4b8588','#7da8ab','#0b7d77','#3d8b8e','#9cc7c9','#1f6b6f','#74a4a6','#b5d3d4'];
+      const chartData = {
+        labels: languages,
+        datasets: models.map((model, i) => ({
+          label: model,
+          data: languages.map(lang => data[lang] ? (data[lang][model] || 0) : 0),
+          backgroundColor: colors[i % colors.length] + '80',
+          borderColor: colors[i % colors.length],
+          borderWidth: 1,
+          borderRadius: 2
+        }))
+      };
+      ensureChart(id, 'bar', chartData, { 
+        responsive: true, 
+        plugins: { legend: { position: 'bottom' }}, 
+        scales: { 
+          x: { grid: { display: false } }, 
+          y: { 
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            beginAtZero: true
+          } 
+        } 
+      });
     }
   };
 })();
