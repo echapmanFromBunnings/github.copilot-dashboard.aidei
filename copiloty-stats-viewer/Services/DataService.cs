@@ -189,6 +189,12 @@ public sealed class DataService
         return new Totals(interactions, generations, acceptances);
     }
 
+    // Configurable parameters for metrics
+    public double SecondsPerAcceptance { get; set; } = 30.0; // Default 30 seconds saved per acceptance
+    public double PowerUserAcceptanceThreshold { get; set; } = 0.3; // 30% acceptance rate
+    public int PowerUserActiveDaysThreshold { get; set; } = 3; // 3+ active days
+    public int EngagementThreshold { get; set; } = 5; // 5+ acceptances for engagement
+
     // AIDEI (AI Development Enablement Index) calculations
     public sealed record AIDEIMetrics(
         double AdoptionRate,
@@ -196,6 +202,34 @@ public sealed class DataService
         double LicensedVsEngagedRate,
         double UsageRate,
         double AIDEIScore
+    );
+
+    // Comprehensive engineering metrics
+    public sealed record EngineeringMetrics(
+        // License and adoption metrics
+        double LicenseUtilization,
+        int UnusedSeats,
+        double EngagedUsersPercent,
+        double UsageRate,
+        
+        // Performance and quality metrics
+        double MedianAcceptanceRate,
+        double AcceptancesPerActiveUserPerDay,
+        double PowerUsersPercent,
+        
+        // Feature usage metrics
+        double InlineSharePercent,
+        double ChatAdoptionPercent,
+        
+        // Model and distribution metrics
+        double ModelLeaderMargin,
+        double ConcentrationIndex,
+        
+        // Growth and efficiency metrics
+        double RampRateUsersPerWeek,
+        double TimeToFirstValueDays,
+        double LanguageCoveragePercent,
+        double EstimatedTimeSavedHours
     );
 
     public AIDEIMetrics GetAIDEI()
@@ -235,9 +269,9 @@ public sealed class DataService
         double licensedVsEngagedRate = 0.0;
         if (TotalLicensedUsers > 0 && workingDays > 0)
         {
-            // Get users who have meaningful engagement (>3 activities on at least 2 days)
+            // Get users who have meaningful engagement (>threshold activities on at least 2 days)
             var meaningfullyEngagedUsers = filtered.GroupBy(r => r.UserLogin)
-                .Where(g => g.Count(r => (r.UserInitiatedInteractionCount + r.CodeGenerationActivityCount) > 3) >= 2)
+                .Where(g => g.Count(r => (r.UserInitiatedInteractionCount + r.CodeGenerationActivityCount) > EngagementThreshold) >= 2)
                 .Select(g => g.Key)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
@@ -271,6 +305,275 @@ public sealed class DataService
         var aideiScore = (adoptionRate * 0.4) + (acceptanceRate * 0.4) + (licensedVsEngagedRate * 0.2);
 
         return new AIDEIMetrics(adoptionRate, acceptanceRate, licensedVsEngagedRate, usageRate, aideiScore);
+    }
+
+    public EngineeringMetrics GetEngineeringMetrics()
+    {
+        var filtered = GetFiltered().ToList();
+        
+        if (!filtered.Any())
+        {
+            return new EngineeringMetrics(0, TotalLicensedUsers, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+
+        // Get basic counts
+        var activeUsers = filtered.Select(r => r.UserLogin).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var activeUserCount = activeUsers.Count;
+        
+        // Date range and working days
+        var dateRange = filtered.GroupBy(r => r.Day).Select(g => g.Key).ToList();
+        var workingDays = 0;
+        if (dateRange.Count > 0)
+        {
+            var minDate = dateRange.Min();
+            var maxDate = dateRange.Max();
+            for (var date = minDate; date <= maxDate; date = date.AddDays(1))
+            {
+                var dayOfWeek = date.DayOfWeek;
+                if (dayOfWeek != DayOfWeek.Saturday && dayOfWeek != DayOfWeek.Sunday)
+                    workingDays++;
+            }
+        }
+        
+        // 1. License Utilization % and Unused Seats
+        var licenseUtilization = TotalLicensedUsers > 0 ? (double)activeUserCount / TotalLicensedUsers : 0;
+        var unusedSeats = Math.Max(0, TotalLicensedUsers - activeUserCount);
+        
+        // 2. Engaged Users % (meaningful engagement: >=threshold activities on >=2 days)
+        var meaningfulUsers = 0;
+        if (workingDays > 0)
+        {
+            var userActivityDays = filtered
+                .GroupBy(r => r.UserLogin)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(r => r.Day)
+                          .Count(dayGroup => dayGroup.Sum(r => r.UserInitiatedInteractionCount + r.CodeGenerationActivityCount) >= EngagementThreshold)
+                );
+            meaningfulUsers = userActivityDays.Count(kvp => kvp.Value >= 2);
+        }
+        var engagedUsersPercent = TotalLicensedUsers > 0 ? (double)meaningfulUsers / TotalLicensedUsers : 0;
+        
+        // 3. Usage Rate % (already calculated in AIDEI, recalculate here)
+        var usageRate = 0.0;
+        if (workingDays > 0 && meaningfulUsers > 0)
+        {
+            var totalActiveDays = filtered.GroupBy(r => new { r.UserLogin, r.Day }).Count();
+            usageRate = (double)totalActiveDays / (meaningfulUsers * workingDays);
+        }
+        
+        // 4. Median Acceptance Rate (per-user)
+        var userAcceptanceRates = filtered
+            .GroupBy(r => r.UserLogin)
+            .Select(g => {
+                var generations = g.Sum(r => r.CodeGenerationActivityCount);
+                var acceptances = g.Sum(r => r.CodeAcceptanceActivityCount);
+                return generations > 0 ? (double)acceptances / generations : 0.0;
+            })
+            .OrderBy(x => x)
+            .ToList();
+        
+        var medianAcceptanceRate = 0.0;
+        if (userAcceptanceRates.Any())
+        {
+            var mid = userAcceptanceRates.Count / 2;
+            medianAcceptanceRate = userAcceptanceRates.Count % 2 == 0
+                ? (userAcceptanceRates[mid - 1] + userAcceptanceRates[mid]) / 2.0
+                : userAcceptanceRates[mid];
+        }
+        
+        // 5. Acceptances per Active User per Working Day
+        var totalAcceptances = filtered.Sum(r => r.CodeAcceptanceActivityCount);
+        var acceptancesPerActiveUserPerDay = (workingDays > 0 && activeUserCount > 0) 
+            ? (double)totalAcceptances / (activeUserCount * workingDays) : 0;
+        
+        // 6. Power Users % (users meeting both acceptance rate and active days thresholds)
+        var powerUserCount = 0;
+        var userStats = filtered
+            .GroupBy(r => r.UserLogin)
+            .Select(g => new {
+                User = g.Key,
+                AcceptanceRate = g.Sum(r => r.CodeGenerationActivityCount) > 0 
+                    ? (double)g.Sum(r => r.CodeAcceptanceActivityCount) / g.Sum(r => r.CodeGenerationActivityCount) : 0,
+                ActiveDays = g.Select(r => r.Day).Distinct().Count()
+            })
+            .ToList();
+        
+        powerUserCount = userStats.Count(u => u.AcceptanceRate >= PowerUserAcceptanceThreshold 
+            && u.ActiveDays >= PowerUserActiveDaysThreshold);
+        var powerUsersPercent = activeUserCount > 0 ? (double)powerUserCount / activeUserCount : 0;
+        
+        // 7. Inline Share % (code_completion generations vs total)
+        var inlineGenerations = filtered
+            .SelectMany(r => r.TotalsByFeature)
+            .Where(f => f.Feature.Equals("code_completion", StringComparison.OrdinalIgnoreCase))
+            .Sum(f => f.CodeGenerationActivityCount);
+        var totalGenerations = filtered.Sum(r => r.CodeGenerationActivityCount);
+        var inlineSharePercent = totalGenerations > 0 ? (double)inlineGenerations / totalGenerations : 0;
+        
+        // 8. Chat Adoption % (users with any chat usage vs active users)
+        var chatUsers = filtered.Where(r => r.UsedChat).Select(r => r.UserLogin).Distinct().Count();
+        var chatAdoptionPercent = activeUserCount > 0 ? (double)chatUsers / activeUserCount : 0;
+        
+        // 9. Model Leader Margin (best model vs overall acceptance rate)
+        var overallAcceptanceRate = totalGenerations > 0 ? (double)totalAcceptances / totalGenerations : 0;
+        var modelAcceptanceRates = filtered
+            .SelectMany(r => r.TotalsByModelFeature)
+            .GroupBy(m => m.Model)
+            .Select(g => new {
+                Model = g.Key,
+                AcceptanceRate = g.Sum(m => m.CodeGenerationActivityCount) > 0 
+                    ? (double)g.Sum(m => m.CodeAcceptanceActivityCount) / g.Sum(m => m.CodeGenerationActivityCount) : 0
+            })
+            .ToList();
+        
+        var bestModelRate = modelAcceptanceRates.Any() ? modelAcceptanceRates.Max(m => m.AcceptanceRate) : 0;
+        var modelLeaderMargin = bestModelRate - overallAcceptanceRate;
+        
+        // 10. Concentration Index (Gini coefficient for generation distribution)
+        var userGenerations = filtered
+            .GroupBy(r => r.UserLogin)
+            .Select(g => g.Sum(r => r.CodeGenerationActivityCount))
+            .OrderBy(x => x)
+            .ToArray();
+        
+        var concentrationIndex = CalculateGiniCoefficient(userGenerations);
+        
+        // 11. Ramp Rate (users/week) - calculate from last 4 weeks if possible
+        var rampRateUsersPerWeek = CalculateRampRate(filtered);
+        
+        // 12. Time-to-First-Value (median days from first seen to first acceptance)
+        var timeToFirstValueDays = CalculateTimeToFirstValue(filtered);
+        
+        // 13. Language Coverage % (users with activity in top language vs active users)
+        var languageCoveragePercent = CalculateLanguageCoverage(filtered, activeUserCount);
+        
+        // 14. Estimated Time Saved (acceptances × configurable seconds per acceptance)
+        var estimatedTimeSavedHours = (totalAcceptances * SecondsPerAcceptance) / 3600.0; // Convert to hours
+        
+        return new EngineeringMetrics(
+            licenseUtilization,
+            unusedSeats,
+            engagedUsersPercent,
+            usageRate,
+            medianAcceptanceRate,
+            acceptancesPerActiveUserPerDay,
+            powerUsersPercent,
+            inlineSharePercent,
+            chatAdoptionPercent,
+            modelLeaderMargin,
+            concentrationIndex,
+            rampRateUsersPerWeek,
+            timeToFirstValueDays,
+            languageCoveragePercent,
+            estimatedTimeSavedHours
+        );
+    }
+    
+    private double CalculateGiniCoefficient(int[] values)
+    {
+        if (values.Length <= 1) return 0.0;
+        
+        var n = values.Length;
+        var sum = values.Sum();
+        if (sum == 0) return 0.0;
+        
+        var gini = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            gini += (2 * (i + 1) - n - 1) * values[i];
+        }
+        
+        return gini / (n * sum);
+    }
+    
+    private double CalculateRampRate(List<CopilotRecord> filtered)
+    {
+        if (!filtered.Any()) return 0.0;
+        
+        // Get weekly active user counts for trend analysis
+        var weeklyUsers = filtered
+            .GroupBy(r => new { 
+                Year = r.Day.Year, 
+                Week = System.Globalization.ISOWeek.GetWeekOfYear(r.Day.ToDateTime(TimeOnly.MinValue))
+            })
+            .Select(g => new {
+                WeekKey = g.Key,
+                ActiveUsers = g.Select(r => r.UserLogin).Distinct().Count()
+            })
+            .OrderBy(w => w.WeekKey.Year).ThenBy(w => w.WeekKey.Week)
+            .ToList();
+        
+        if (weeklyUsers.Count < 2) return 0.0;
+        
+        // Simple linear regression to get slope (users per week)
+        var n = weeklyUsers.Count;
+        var sumX = n * (n + 1) / 2.0; // 1 + 2 + ... + n
+        var sumY = weeklyUsers.Sum(w => w.ActiveUsers);
+        var sumXY = weeklyUsers.Select((w, i) => (i + 1) * w.ActiveUsers).Sum();
+        var sumX2 = n * (n + 1) * (2 * n + 1) / 6.0; // 1² + 2² + ... + n²
+        
+        var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        return slope;
+    }
+    
+    private double CalculateTimeToFirstValue(List<CopilotRecord> filtered)
+    {
+        var userFirstAcceptance = filtered
+            .Where(r => r.CodeAcceptanceActivityCount > 0)
+            .GroupBy(r => r.UserLogin)
+            .Select(g => g.Min(r => r.Day))
+            .ToList();
+        
+        var userFirstSeen = filtered
+            .GroupBy(r => r.UserLogin)
+            .Select(g => g.Min(r => r.Day))
+            .ToList();
+        
+        var timeToValueDays = new List<double>();
+        foreach (var user in filtered.Select(r => r.UserLogin).Distinct())
+        {
+            var firstSeen = filtered.Where(r => r.UserLogin == user).Min(r => r.Day);
+            var firstAcceptance = filtered
+                .Where(r => r.UserLogin == user && r.CodeAcceptanceActivityCount > 0)
+                .Select(r => r.Day)
+                .FirstOrDefault();
+            
+            if (firstAcceptance != default)
+            {
+                timeToValueDays.Add((firstAcceptance.ToDateTime(TimeOnly.MinValue) - 
+                                   firstSeen.ToDateTime(TimeOnly.MinValue)).TotalDays);
+            }
+        }
+        
+        if (!timeToValueDays.Any()) return 0.0;
+        
+        timeToValueDays.Sort();
+        var mid = timeToValueDays.Count / 2;
+        return timeToValueDays.Count % 2 == 0
+            ? (timeToValueDays[mid - 1] + timeToValueDays[mid]) / 2.0
+            : timeToValueDays[mid];
+    }
+    
+    private double CalculateLanguageCoverage(List<CopilotRecord> filtered, int activeUserCount)
+    {
+        if (activeUserCount == 0) return 0.0;
+        
+        // Find the most popular language
+        var languageUsage = filtered
+            .SelectMany(r => r.TotalsByLanguageModel)
+            .GroupBy(l => l.Language)
+            .Select(g => new { 
+                Language = g.Key, 
+                Users = filtered.Where(r => r.TotalsByLanguageModel.Any(lm => lm.Language == g.Key))
+                                .Select(r => r.UserLogin).Distinct().Count()
+            })
+            .OrderByDescending(l => l.Users)
+            .FirstOrDefault();
+        
+        if (languageUsage == null) return 0.0;
+        
+        return (double)languageUsage.Users / activeUserCount;
     }
 }
 

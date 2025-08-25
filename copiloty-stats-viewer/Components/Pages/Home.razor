@@ -34,7 +34,75 @@
                        @bind="totalLicensedUsers" @bind:event="oninput" 
                        @onchange="OnLicensedUsersChanged" 
                        placeholder="0" min="0" />
+                <button class="btn btn-outline-primary btn-sm ms-2" @onclick="ToggleSettings">
+                    <span class="oi oi-cog" aria-hidden="true"></span> Settings
+                </button>
             </div>
+        </div>
+        
+        <!-- Configuration Settings Panel -->
+        @if (showSettings)
+        {
+            <div class="border-top pt-3 mt-3">
+                <h6 class="text-primary mb-3">
+                    <span class="oi oi-cog" aria-hidden="true"></span> 
+                    Metric Configuration Settings
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Time Saved per Acceptance</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" 
+                                   @bind="timeSavedPerAcceptanceSeconds" 
+                                   @oninput="OnTimeSavedChanged"
+                                   min="1" max="300" step="1"
+                                   data-bs-toggle="tooltip" 
+                                   title="Average seconds saved per accepted code suggestion. Used for ROI calculations." />
+                            <span class="input-group-text">sec</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Power User Acceptance Rate</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" 
+                                   @bind="powerUserAcceptanceThreshold" 
+                                   @oninput="OnPowerUserAcceptanceChanged"
+                                   min="0.1" max="1.0" step="0.05"
+                                   data-bs-toggle="tooltip" 
+                                   title="Minimum acceptance rate required to classify a user as a power user." />
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Power User Active Days</label>
+                        <input type="number" class="form-control" 
+                               @bind="powerUserActiveDaysThreshold" 
+                               @oninput="OnPowerUserDaysChanged"
+                               min="1" max="30" step="1"
+                               data-bs-toggle="tooltip" 
+                               title="Minimum number of active days required to classify a user as a power user." />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Engagement Threshold</label>
+                        <input type="number" class="form-control" 
+                               @bind="engagementThreshold" 
+                               @oninput="OnEngagementThresholdChanged"
+                               min="1" max="50" step="1"
+                               data-bs-toggle="tooltip" 
+                               title="Minimum number of code acceptances required to consider a user as engaged." />
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <span class="oi oi-info" aria-hidden="true"></span>
+                            Changes to these settings will automatically recalculate all metrics. 
+                            Default values are based on industry best practices.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        }
         </div>
         @if (isLoading)
         {
@@ -66,11 +134,216 @@
                 <span class="oi oi-info" aria-hidden="true"></span> No valid records found in the selected file.
             </div>
         }
-    </div>
-</div>
+        </div>
 
 @if (loadedCount > 0)
 {
+    <!-- Quick Wins KPI Cards -->
+    <div class="mb-4">
+        <h3 class="mb-3">
+            <span class="oi oi-dashboard" aria-hidden="true"></span>
+            Quick Wins Dashboard
+        </h3>
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="AI Development Enablement Index: Composite score measuring adoption rate (40%), acceptance rate (40%), and engagement (20%)">
+                    <div class="stat-value">@aideiMetrics.AIDEIScore.ToString("F1")</div>
+                    <div class="stat-label">AIDEI Score</div>
+                    <small class="stat-description">Overall AI enablement</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Percentage of users who have used Copilot at least once out of total licensed users">
+                    <div class="stat-value">@(engineeringMetrics.UsageRate.ToString("P1"))</div>
+                    <div class="stat-label">Usage Rate</div>
+                    <small class="stat-description">Active vs licensed</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Percentage of licensed users who are actively engaged (5+ acceptances in the time period)">
+                    <div class="stat-value">@(engineeringMetrics.LicenseUtilization.ToString("P1"))</div>
+                    <div class="stat-label">License Utilization</div>
+                    <small class="stat-description">Engaged users</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Number of licensed seats that are not being actively used - potential cost optimization opportunity">
+                    <div class="stat-value">@engineeringMetrics.UnusedSeats</div>
+                    <div class="stat-label">Unused Seats</div>
+                    <small class="stat-description">Potential savings</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Percentage of active users who demonstrate consistent engagement with 5+ code acceptances">
+                    <div class="stat-value">@(engineeringMetrics.EngagedUsersPercent.ToString("P1"))</div>
+                    <div class="stat-label">Engaged Users</div>
+                    <small class="stat-description">Regular usage</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
+                <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
+                     title="Percentage of users with high adoption: 30%+ acceptance rate and 3+ active days in the period">
+                    <div class="stat-value">@(engineeringMetrics.PowerUsersPercent.ToString("P1"))</div>
+                    <div class="stat-label">Power Users</div>
+                    <small class="stat-description">Heavy adopters</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AIDEI Detailed Metrics Section -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="mb-0">AIDEI Detailed Metrics</h4>
+          <small class="text-muted">AI Development Enablement Index</small>
+        </div>
+        
+        <div class="row g-3 mb-4">
+          <div class="col-md-2 offset-md-1">
+            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                 title="Composite AI Development Enablement Index score combining Adoption Rate (40%), Acceptance Rate (40%), and Licensed vs Engaged Rate (20%). Scale: 0 to 100">
+              <div class="stat-value">@((aideiMetrics.AIDEIScore * 100).ToString("F1"))</div>
+              <div class="stat-label">AIDEI Score</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                 title="Percentage of total licensed users who have any Copilot activity (interactions or code generations)">
+              <div class="stat-value">@aideiMetrics.AdoptionRate.ToString("P1")</div>
+              <div class="stat-label">Adoption Rate</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                 title="Percentage of AI code suggestions that developers accepted and used in their code">
+              <div class="stat-value">@aideiMetrics.AcceptanceRate.ToString("P1")</div>
+              <div class="stat-label">Acceptance Rate</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                 title="Percentage of total licensed users who have meaningful daily engagement (>3 activities on at least 2 days) representing true productivity usage">
+              <div class="stat-value">@aideiMetrics.LicensedVsEngagedRate.ToString("P1")</div>
+              <div class="stat-label">Licensed vs Engaged</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                 title="Letter grade representation of AIDEI Score: A+ (90+), A (80+), B+ (70+), B (60+), C+ (50+), C (40+), D (30+), F (below 30)">
+              <div class="stat-value">@GetAIDEIGrade()</div>
+              <div class="stat-label">AIDEI Grade</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Engineering Metrics -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0 text-secondary">
+                <span class="oi oi-graph" aria-hidden="true"></span>
+                Advanced Engineering Metrics
+            </h4>
+            <button class="btn btn-outline-primary btn-sm" @onclick="() => showAdvancedMetrics = !showAdvancedMetrics">
+                <span class="oi @(showAdvancedMetrics ? "oi-chevron-top" : "oi-chevron-bottom")" aria-hidden="true"></span>
+                @(showAdvancedMetrics ? "Hide" : "Show") Details
+            </button>
+        </div>
+        
+        @if (showAdvancedMetrics)
+        {
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="The middle value of acceptance rates across all users. More stable than average acceptance rate as it's not skewed by outliers. Indicates typical suggestion quality.">
+                        <div class="stat-value">@(engineeringMetrics.MedianAcceptanceRate.ToString("P1"))</div>
+                        <div class="stat-label">Median Acceptance Rate</div>
+                        <small class="text-muted">Quality indicator</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Average number of code suggestions accepted per active user per day. Higher values indicate better individual productivity and engagement with AI assistance.">
+                        <div class="stat-value">@(engineeringMetrics.AcceptancesPerActiveUserPerDay.ToString("F1"))</div>
+                        <div class="stat-label">Daily Acceptances/User</div>
+                        <small class="text-muted">Productivity metric</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Percentage of code generations that come from inline code completion features vs other features. Shows preference for seamless, context-aware coding assistance.">
+                        <div class="stat-value">@(engineeringMetrics.InlineSharePercent.ToString("P1"))</div>
+                        <div class="stat-label">Inline Usage</div>
+                        <small class="text-muted">Feature adoption</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Percentage of active users who have used GitHub Copilot Chat features. Indicates adoption of conversational AI for problem-solving and code explanation.">
+                        <div class="stat-value">@(engineeringMetrics.ChatAdoptionPercent.ToString("P1"))</div>
+                        <div class="stat-label">Chat Adoption</div>
+                        <small class="text-muted">AI interaction</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Difference between the best-performing AI model's acceptance rate and the overall average. Higher margins indicate clear model preferences and quality differences.">
+                        <div class="stat-value">@(engineeringMetrics.ModelLeaderMargin.ToString("P1"))</div>
+                        <div class="stat-label">Model Leader Margin</div>
+                        <small class="text-muted">Distribution metric</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Gini coefficient measuring inequality in Copilot usage distribution. 0 = perfectly equal usage, 1 = highly concentrated. Values >0.5 suggest few power users dominate.">
+                        <div class="stat-value">@(engineeringMetrics.ConcentrationIndex.ToString("F2"))</div>
+                        <div class="stat-label">Usage Concentration</div>
+                        <small class="text-muted">Gini coefficient</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Average number of new users adopting Copilot per week over the last 4 weeks. Indicates the velocity of organic adoption within your organization.">
+                        <div class="stat-value">@(engineeringMetrics.RampRateUsersPerWeek.ToString("F1"))</div>
+                        <div class="stat-label">Weekly Growth Rate</div>
+                        <small class="text-muted">New users/week</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Median number of days from a user's first Copilot interaction to their first code acceptance. Lower values indicate faster onboarding and value realization.">
+                        <div class="stat-value">@(engineeringMetrics.TimeToFirstValueDays.ToString("F1"))</div>
+                        <div class="stat-label">Time to First Value</div>
+                        <small class="text-muted">Days to adoption</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Percentage of programming languages supported by Copilot that are actively being used by your team. Higher coverage indicates diverse technology adoption.">
+                        <div class="stat-value">@(engineeringMetrics.LanguageCoveragePercent.ToString("P1"))</div>
+                        <div class="stat-label">Language Coverage</div>
+                        <small class="text-muted">Supported languages</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                         title="Estimated developer hours saved based on total code acceptances × configurable time per acceptance (default: 30 seconds). Provides ROI calculation for Copilot investment.">
+                        <div class="stat-value">@(engineeringMetrics.EstimatedTimeSavedHours.ToString("N0"))h</div>
+                        <div class="stat-label">Time Saved (Est.)</div>
+                        <small class="text-muted">Productivity gain</small>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
     <Filters OnChanged="OnFiltersChanged" />
 
     <div class="row g-4">
@@ -84,25 +357,29 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Total number of unique users who have any recorded Copilot activity (interactions or code generations)">
                                 <div class="stat-value">@adoption.ActiveUsers</div>
                                 <div class="stat-label">Active Users</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Number of users who have used GitHub Copilot Chat features (chat panel, inline chat, or ask mode)">
                                 <div class="stat-value">@adoption.UsingChat</div>
                                 <div class="stat-label">Using Chat</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Number of users who have used GitHub Copilot inline features like inline chat and contextual suggestions">
                                 <div class="stat-value">@adoption.UsingInline</div>
                                 <div class="stat-label">Using Inline</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Number of users who have used GitHub Copilot code completion features for automatic code suggestions">
                                 <div class="stat-value">@adoption.UsingCompletions</div>
                                 <div class="stat-label">Using Completions</div>
                             </div>
@@ -121,25 +398,29 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Total number of user interactions with Copilot across all features (chat messages, completion requests, etc.)">
                                 <div class="stat-value">@totals.Interactions.ToString("N0")</div>
                                 <div class="stat-label">Interactions</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Total number of AI-generated code suggestions and completions provided by Copilot to users">
                                 <div class="stat-value">@totals.Generations.ToString("N0")</div>
                                 <div class="stat-label">Generations</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Total number of AI-generated code suggestions that developers accepted and incorporated into their code">
                                 <div class="stat-value">@totals.Acceptances.ToString("N0")</div>
                                 <div class="stat-label">Acceptances</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                 title="Percentage of AI code suggestions that were accepted by developers (Acceptances ÷ Generations). Higher rates indicate more relevant suggestions.">
                                 <div class="stat-value">@totals.AcceptanceRate.ToString("P1")</div>
                                 <div class="stat-label">Acceptance Rate</div>
                             </div>
@@ -164,20 +445,79 @@
 		private int loadedCount;
 		private DateOnly minDate, maxDate;
 	private int refreshKey = 0;
-		private DataService.AdoptionStats adoption = new(0,0,0,0);
-		private DataService.Totals totals = new(0,0,0);
-		private string? loadError;
-		private bool isLoading = false;
-		private int progressRecords = 0;
-		private long progressBytes = 0;
-		private long totalBytes = 0;
-		private int progressPercent => totalBytes > 0 ? (int)Math.Min(100, Math.Round(progressBytes * 100.0 / totalBytes)) : 0;
-		private string progressBytesDisplay => FormatBytes(progressBytes);
-		private string totalBytesDisplay => totalBytes > 0 ? FormatBytes(totalBytes) : "unknown";
-		private bool loadAttempted = false;
-		private int totalLicensedUsers = 0;
-
-		private async Task OnFileSelected(InputFileChangeEventArgs e)
+	private DataService.AdoptionStats adoption = new(0,0,0,0);
+	private DataService.Totals totals = new(0,0,0);
+	private DataService.AIDEIMetrics aideiMetrics = new(0,0,0,0,0);
+	private DataService.EngineeringMetrics engineeringMetrics = new(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+	private string? loadError;
+	private bool isLoading = false;
+	private int progressRecords = 0;
+	private long progressBytes = 0;
+	private long totalBytes = 0;
+	private int progressPercent => totalBytes > 0 ? (int)Math.Min(100, Math.Round(progressBytes * 100.0 / totalBytes)) : 0;
+	private string progressBytesDisplay => FormatBytes(progressBytes);
+	private string totalBytesDisplay => totalBytes > 0 ? FormatBytes(totalBytes) : "unknown";
+	private bool loadAttempted = false;
+	private int totalLicensedUsers = 0;
+	private bool showAdvancedMetrics = false;
+	private bool showSettings = false;
+	
+	// Configuration settings with change notifications
+	private int _timeSavedPerAcceptanceSeconds = 30;
+	private int timeSavedPerAcceptanceSeconds
+	{
+		get => _timeSavedPerAcceptanceSeconds;
+		set
+		{
+			if (_timeSavedPerAcceptanceSeconds != value)
+			{
+				_timeSavedPerAcceptanceSeconds = value;
+				_ = Task.Run(OnSettingsChanged);
+			}
+		}
+	}
+	
+	private double _powerUserAcceptanceThreshold = 0.3;
+	private double powerUserAcceptanceThreshold
+	{
+		get => _powerUserAcceptanceThreshold;
+		set
+		{
+			if (Math.Abs(_powerUserAcceptanceThreshold - value) > 0.001)
+			{
+				_powerUserAcceptanceThreshold = value;
+				_ = Task.Run(OnSettingsChanged);
+			}
+		}
+	}
+	
+	private int _powerUserActiveDaysThreshold = 3;
+	private int powerUserActiveDaysThreshold
+	{
+		get => _powerUserActiveDaysThreshold;
+		set
+		{
+			if (_powerUserActiveDaysThreshold != value)
+			{
+				_powerUserActiveDaysThreshold = value;
+				_ = Task.Run(OnSettingsChanged);
+			}
+		}
+	}
+	
+	private int _engagementThreshold = 5;
+	private int engagementThreshold
+	{
+		get => _engagementThreshold;
+		set
+		{
+			if (_engagementThreshold != value)
+			{
+				_engagementThreshold = value;
+				_ = Task.Run(OnSettingsChanged);
+			}
+		}
+	}		private async Task OnFileSelected(InputFileChangeEventArgs e)
 		{
 				var file = e.File;
 				try
@@ -260,8 +600,12 @@
 		{
 				adoption = Data.GetAdoption();
 			totals = Data.GetTotals();
+			aideiMetrics = Data.GetAIDEI();
+			engineeringMetrics = Data.GetEngineeringMetrics();
 		refreshKey++;
 				StateHasChanged();
+				// Reinitialize tooltips after state change
+				_ = InvokeAsync(() => JS.InvokeVoidAsync("initializeTooltips"));
 		}
 
 		private void AfterLoad()
@@ -289,4 +633,108 @@
 			// Recalculate adoption stats based on the new licensed users count
 			OnFiltersChanged();
 		}
+		
+		private string GetAIDEIGrade()
+		{
+			var score = aideiMetrics.AIDEIScore * 100;
+			return score switch
+			{
+				>= 90 => "A+",
+				>= 80 => "A",
+				>= 70 => "B+",
+				>= 60 => "B",
+				>= 50 => "C+",
+				>= 40 => "C",
+				>= 30 => "D",
+				_ => "F"
+			};
+		}
+		
+		private void ToggleSettings()
+		{
+			showSettings = !showSettings;
+			StateHasChanged();
+		}
+		
+		private async Task OnSettingsChanged()
+		{
+			// Update DataService with new settings
+			Data.SecondsPerAcceptance = timeSavedPerAcceptanceSeconds;
+			Data.PowerUserAcceptanceThreshold = powerUserAcceptanceThreshold;
+			Data.PowerUserActiveDaysThreshold = powerUserActiveDaysThreshold;
+			Data.EngagementThreshold = engagementThreshold;
+			
+			// Recalculate metrics with new settings on UI thread
+			await InvokeAsync(() => {
+				OnFiltersChanged();
+			});
+		}
+		
+		private async Task OnTimeSavedChanged(ChangeEventArgs e)
+		{
+			if (int.TryParse(e.Value?.ToString(), out int value))
+			{
+				timeSavedPerAcceptanceSeconds = value;
+				await OnSettingsChanged();
+			}
+		}
+		
+		private async Task OnPowerUserAcceptanceChanged(ChangeEventArgs e)
+		{
+			if (double.TryParse(e.Value?.ToString(), out double value))
+			{
+				powerUserAcceptanceThreshold = value;
+				await OnSettingsChanged();
+			}
+		}
+		
+		private async Task OnPowerUserDaysChanged(ChangeEventArgs e)
+		{
+			if (int.TryParse(e.Value?.ToString(), out int value))
+			{
+				powerUserActiveDaysThreshold = value;
+				await OnSettingsChanged();
+			}
+		}
+		
+		private async Task OnEngagementThresholdChanged(ChangeEventArgs e)
+		{
+			if (int.TryParse(e.Value?.ToString(), out int value))
+			{
+				engagementThreshold = value;
+				await OnSettingsChanged();
+			}
+		}
 }
+
+<script>
+    // Initialize Bootstrap tooltips after the page loads
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeTooltips();
+    });
+    
+    // Function to initialize/reinitialize tooltips
+    window.initializeTooltips = function() {
+        // Dispose existing tooltips first to avoid memory leaks
+        var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        existingTooltips.forEach(function(el) {
+            var tooltip = bootstrap.Tooltip.getInstance(el);
+            if (tooltip) {
+                tooltip.dispose();
+            }
+        });
+        
+        // Initialize new tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                trigger: 'hover focus'
+            });
+        });
+    };
+    
+    // Reinitialize tooltips after Blazor updates (called from C#)
+    Blazor.addEventListener('enhancedload', function () {
+        setTimeout(initializeTooltips, 100);
+    });
+</script>

@@ -4,45 +4,6 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <strong>AIDEI Metrics</strong>
-      <small class="text-muted">AI Development Enablement Index</small>
-    </div>
-    
-    <!-- AIDEI Metrics Display -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-2 offset-md-1">
-        <div class="stat-card border-primary" title="Composite AI Development Enablement Index score combining Adoption Rate (40%), Acceptance Rate (40%), and Licensed vs Engaged Rate (20%). Scale: 0 to 100">
-          <div class="stat-value text-primary">@((aideiMetrics.AIDEIScore * 100).ToString("F4"))</div>
-          <div class="stat-label">AIDEI Score</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat-card" title="Percentage of total licensed users who have any Copilot activity (interactions or code generations)">
-          <div class="stat-value">@aideiMetrics.AdoptionRate.ToString("P1")</div>
-          <div class="stat-label">Adoption Rate</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat-card" title="Percentage of AI code suggestions that developers accepted and used in their code">
-          <div class="stat-value">@aideiMetrics.AcceptanceRate.ToString("P1")</div>
-          <div class="stat-label">Acceptance Rate</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat-card" title="Percentage of total licensed users who have meaningful daily engagement (>3 activities on at least 2 days) representing true productivity usage">
-          <div class="stat-value">@aideiMetrics.LicensedVsEngagedRate.ToString("P1")</div>
-          <div class="stat-label">Licensed vs Engaged</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat-card" title="Letter grade representation of AIDEI Score: A+ (90+), A (80+), B+ (70+), B (60+), C+ (50+), C (40+), D (30+), F (below 30)">
-          <div class="stat-value">@GetAIDEIGrade()</div>
-          <div class="stat-label">AIDEI Grade</div>
-        </div>
-      </div>
-    </div>
-
     <div class="d-flex justify-content-between align-items-center mb-2">
       <strong>Records (Grouped by User)</strong>
       <input class="form-control w-auto" style="min-width:260px" placeholder="Search user/login..." @bind="search" />
@@ -110,30 +71,8 @@
     private string sort = "TotalGenerations";
     private bool sortDesc = true;
     private HashSet<string> expandedUsers = new();
-    private DataService.AIDEIMetrics aideiMetrics = new(0, 0, 0, 0, 0);
 
     [Parameter] public int RefreshKey { get; set; }
-
-    protected override void OnParametersSet()
-    {
-        aideiMetrics = Data.GetAIDEI();
-    }
-
-    private string GetAIDEIGrade()
-    {
-        var score = aideiMetrics.AIDEIScore;
-        return score switch
-        {
-            >= 0.90 => "A+",
-            >= 0.80 => "A",
-            >= 0.70 => "B+",
-            >= 0.60 => "B",
-            >= 0.50 => "C+",
-            >= 0.40 => "C",
-            >= 0.30 => "D",
-            _ => "F"
-        };
-    }
 
     private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances);
 

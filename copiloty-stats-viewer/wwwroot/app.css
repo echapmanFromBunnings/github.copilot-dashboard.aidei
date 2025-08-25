@@ -1,6 +1,6 @@
 /* Global theme: Bunnings green (#005358) and minimalist UI */
 :root {
-    --primary-color: #007bff;
+    --primary-color: #005358;
     --background-color: #f8f9fa;
     --surface-color: #ffffff;
     --text-color: #333333;
@@ -127,7 +127,7 @@ table.table tr:hover { background: #f9fbfb; }
 }
 
 .btn-primary:hover {
-    background-color: #0056b3;
+    background-color: #005358;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
