@@ -121,6 +121,47 @@ window.copilotCharts = (function(){
           } 
         } 
       });
+    },
+    sparkline: function(id, data, color = '#005358'){
+      const chartData = {
+        labels: data.map((_, i) => ''),
+        datasets: [{
+          data: data,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0.4,
+          fill: false,
+          borderWidth: 1.5
+        }]
+      };
+      ensureChart(id, 'line', chartData, { 
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }, 
+        scales: { 
+          x: { 
+            display: false,
+            grid: { display: false }
+          }, 
+          y: { 
+            display: false,
+            grid: { display: false },
+            beginAtZero: false
+          } 
+        },
+        elements: {
+          point: { radius: 0 }
+        },
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        }
+      });
     }
   };
 })();

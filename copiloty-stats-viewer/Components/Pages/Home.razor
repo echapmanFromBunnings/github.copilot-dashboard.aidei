@@ -397,10 +397,15 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                            <div class="stat-card stat-card-with-sparkline" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Total number of unique users who have any recorded Copilot activity (interactions or code generations)">
-                                <div class="stat-value">@adoption.ActiveUsers</div>
-                                <div class="stat-label">Active Users</div>
+                                <div class="stat-main">
+                                    <div class="stat-value">@adoption.ActiveUsers</div>
+                                    <div class="stat-label">Active Users</div>
+                                </div>
+                                <div class="sparkline-container">
+                                    <canvas id="activeUsersSparkline"></canvas>
+                                </div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
@@ -459,11 +464,16 @@
                             </div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
+                            <div class="stat-card stat-card-with-sparkline" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Activity-Based Acceptance Rate: Percentage of code generation activities that resulted in code acceptance (Activity Sessions). This differs from GitHub's Suggestion-Based rate which counts individual suggestions. Activity-based rates are typically lower as one session may contain multiple suggestions.">
-                                <div class="stat-value">@totals.AcceptanceRate.ToString("P1")</div>
-                                <div class="stat-label">Activity-Based Rate</div>
-                                <small class="text-muted">Session-level metric</small>
+                                <div class="stat-main">
+                                    <div class="stat-value">@totals.AcceptanceRate.ToString("P1")</div>
+                                    <div class="stat-label">Activity-Based Rate</div>
+                                    <small class="text-muted">Session-level metric</small>
+                                </div>
+                                <div class="sparkline-container">
+                                    <canvas id="acceptanceRateSparkline"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -706,9 +716,42 @@
 				StateHasChanged();
 				// Reinitialize tooltips after state change
 				_ = InvokeAsync(() => JS.InvokeVoidAsync("initializeTooltips"));
+				// Render sparklines after state change
+				_ = InvokeAsync(RenderSparklines);
 		}
 
-		private void AfterLoad()
+		private async Task RenderSparklines()
+		{
+			try
+			{
+				var ts = Data.GetTimeSeries().ToList();
+				if (ts.Any())
+				{
+					// Calculate daily unique active users
+					var activeUsersData = ts.Select(point => 
+						Data.GetFiltered()
+							.Where(r => r.Day == point.Day)
+							.Select(r => r.UserLogin)
+							.Distinct(StringComparer.OrdinalIgnoreCase)
+							.Count()
+					).ToArray();
+
+					// Calculate daily acceptance rates
+					var acceptanceRateData = ts.Select(point => 
+						point.Generations > 0 ? (double)point.Acceptances / point.Generations * 100 : 0
+					).ToArray();
+
+					await JS.InvokeVoidAsync("copilotCharts.sparkline", "activeUsersSparkline", activeUsersData, "#2b6c70");
+					await JS.InvokeVoidAsync("copilotCharts.sparkline", "acceptanceRateSparkline", acceptanceRateData, "#005358");
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error rendering sparklines: {ex.Message}");
+			}
+		}
+
+	private void AfterLoad()
 		{
 				loadedCount = Data.Records.Count;
 				if (loadedCount > 0)
@@ -847,4 +890,3 @@
         setTimeout(initializeTooltips, 100);
     });
 </script>
-

@@ -6,7 +6,13 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <strong>Records (Grouped by User)</strong>
-      <input class="form-control w-auto" style="min-width:260px" placeholder="Search user/login..." @bind="search" />
+      <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-outline-primary btn-sm" @onclick="ToggleCompactView">
+          <span class="oi oi-@(compactView ? "list" : "grid-two-up")" aria-hidden="true"></span>
+          @(compactView ? "Detailed View" : "Compact View")
+        </button>
+        <input class="form-control w-auto" style="min-width:260px" placeholder="Search user/login..." @bind="search" />
+      </div>
     </div>
     <div class="table-responsive">
       <table class="table table-sm table-hover">
@@ -40,9 +46,16 @@
               <td><strong>@userGroup.MostUsedLanguage</strong></td>
               <td><strong>@userGroup.MostUsedModel</strong></td>
               <td>
-                <small class="text-muted">
-                  @string.Join(", ", userGroup.Records.SelectMany(r => r.TotalsByFeature.Select(f => DataService.GetFriendlyFeatureName(f.Feature))).Distinct())
-                </small>
+                @if (compactView)
+                {
+                  <small class="text-muted">
+                    @string.Join(", ", userGroup.Records.SelectMany(r => r.TotalsByFeature.Select(f => DataService.GetFriendlyFeatureName(f.Feature))).Distinct())
+                  </small>
+                }
+                else
+                {
+                  @RenderUserFeatureBreakdown(userGroup.Records)
+                }
               </td>
             </tr>
             
@@ -60,7 +73,14 @@
                   <td></td>
                   <td></td>
                   <td>
-                    <small>@string.Join(", ", r.TotalsByFeature.Select(f=>DataService.GetFriendlyFeatureName(f.Feature)).Distinct())</small>
+                    @if (compactView)
+                    {
+                      <small>@string.Join(", ", r.TotalsByFeature.Select(f=>DataService.GetFriendlyFeatureName(f.Feature)).Distinct())</small>
+                    }
+                    else
+                    {
+                      @RenderDailyFeatureBreakdown(r.TotalsByFeature)
+                    }
                   </td>
                 </tr>
               }
@@ -77,10 +97,18 @@
     private string sort = "TotalGenerations";
     private bool sortDesc = true;
     private HashSet<string> expandedUsers = new();
+    private bool compactView = true; // Default to compact view
 
     [Parameter] public int RefreshKey { get; set; }
 
     private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances, string MostUsedLanguage, string MostUsedModel);
+    
+    private record FeatureStats(string Feature, int TotalInteractions, int TotalGenerations, int TotalAcceptances);
+
+    private void ToggleCompactView()
+    {
+        compactView = !compactView;
+    }
 
     private void ToggleUserGroup(string user)
     {
@@ -98,6 +126,82 @@
     {
         return expandedUsers.Contains(user);
     }
+
+    private List<FeatureStats> GetUserFeatureStats(IEnumerable<CopilotRecord> records)
+    {
+        return records
+            .SelectMany(r => r.TotalsByFeature)
+            .GroupBy(f => f.Feature)
+            .Select(g => new FeatureStats(
+                g.Key,
+                g.Sum(f => f.UserInitiatedInteractionCount),
+                g.Sum(f => f.CodeGenerationActivityCount),
+                g.Sum(f => f.CodeAcceptanceActivityCount)
+            ))
+            .ToList();
+    }
+
+    private RenderFragment RenderUserFeatureBreakdown(IEnumerable<CopilotRecord> records) => builder =>
+    {
+        var userFeatureStats = GetUserFeatureStats(records);
+        if (!userFeatureStats.Any()) return;
+        
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "feature-breakdown");
+        
+        foreach (var featureStat in userFeatureStats.OrderByDescending(f => f.TotalGenerations))
+        {
+            builder.OpenElement(2, "div");
+            builder.AddAttribute(3, "class", "mb-1");
+            
+            builder.OpenElement(4, "strong");
+            builder.AddAttribute(5, "class", "text-primary");
+            builder.AddContent(6, DataService.GetFriendlyFeatureName(featureStat.Feature));
+            builder.CloseElement();
+            
+            builder.AddMarkupContent(7, "<br />");
+            
+            builder.OpenElement(8, "small");
+            builder.AddAttribute(9, "class", "text-muted");
+            builder.AddContent(10, $"Interactions: {featureStat.TotalInteractions:N0} | Generations: {featureStat.TotalGenerations:N0} | Acceptances: {featureStat.TotalAcceptances:N0}");
+            builder.CloseElement();
+            
+            builder.CloseElement();
+        }
+        
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderDailyFeatureBreakdown(List<FeatureTotals> features) => builder =>
+    {
+        if (!features.Any()) return;
+        
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "feature-breakdown-daily");
+        
+        foreach (var feature in features.OrderByDescending(f => f.CodeGenerationActivityCount))
+        {
+            builder.OpenElement(2, "div");
+            builder.AddAttribute(3, "class", "mb-1");
+            
+            builder.OpenElement(4, "small");
+            builder.AddAttribute(5, "class", "text-primary fw-bold");
+            builder.AddContent(6, DataService.GetFriendlyFeatureName(feature.Feature));
+            builder.CloseElement();
+            
+            builder.AddMarkupContent(7, "<br />");
+            
+            builder.OpenElement(8, "small");
+            builder.AddAttribute(9, "class", "text-muted");
+            builder.AddAttribute(10, "style", "font-size: 0.7rem;");
+            builder.AddContent(11, $"I: {feature.UserInitiatedInteractionCount} | G: {feature.CodeGenerationActivityCount} | A: {feature.CodeAcceptanceActivityCount}");
+            builder.CloseElement();
+            
+            builder.CloseElement();
+        }
+        
+        builder.CloseElement();
+    };
 
     private IEnumerable<UserGroup> GetUserGroups()
     {
