@@ -23,9 +23,12 @@
             <th class="text-end" role="button" @onclick='() => SortBy("Interactions")'>Interactions @SortIcon("Interactions")</th>
             <th class="text-end" role="button" @onclick='() => SortBy("Generations")'>Generations @SortIcon("Generations")</th>
             <th class="text-end" role="button" @onclick='() => SortBy("Acceptances")'>Acceptances @SortIcon("Acceptances")</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("CodeCompletion")'>Code Completion @SortIcon("CodeCompletion")</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("ChatAgent")'>Chat Agent @SortIcon("ChatAgent")</th>
+            <th class="text-end" role="button" @onclick='() => SortBy("InlineChat")'>Inline Chat @SortIcon("InlineChat")</th>
             <th>Most Used Language</th>
             <th>Most Used Model</th>
-            <th>Features</th>
+            <th>@(compactView ? "Features" : "Feature Breakdown")</th>
           </tr>
         </thead>
         <tbody>
@@ -43,6 +46,9 @@
               <td class="text-end"><strong>@userGroup.TotalInteractions.ToString("N0")</strong></td>
               <td class="text-end"><strong>@userGroup.TotalGenerations.ToString("N0")</strong></td>
               <td class="text-end"><strong>@userGroup.TotalAcceptances.ToString("N0")</strong></td>
+              <td class="text-end"><strong>@userGroup.CodeCompletionGenerations.ToString("N0")</strong></td>
+              <td class="text-end"><strong>@userGroup.ChatAgentGenerations.ToString("N0")</strong></td>
+              <td class="text-end"><strong>@userGroup.InlineChatGenerations.ToString("N0")</strong></td>
               <td><strong>@userGroup.MostUsedLanguage</strong></td>
               <td><strong>@userGroup.MostUsedModel</strong></td>
               <td>
@@ -70,6 +76,9 @@
                   <td class="text-end">@r.UserInitiatedInteractionCount.ToString("N0")</td>
                   <td class="text-end">@r.CodeGenerationActivityCount.ToString("N0")</td>
                   <td class="text-end">@r.CodeAcceptanceActivityCount.ToString("N0")</td>
+                  <td class="text-end">@GetFeatureGenerations(r, "code_completion").ToString("N0")</td>
+                  <td class="text-end">@GetFeatureGenerations(r, "chat_panel_agent_mode").ToString("N0")</td>
+                  <td class="text-end">@GetFeatureGenerations(r, "chat_inline").ToString("N0")</td>
                   <td></td>
                   <td></td>
                   <td>
@@ -101,7 +110,18 @@
 
     [Parameter] public int RefreshKey { get; set; }
 
-    private record UserGroup(string User, IEnumerable<CopilotRecord> Records, int TotalInteractions, int TotalGenerations, int TotalAcceptances, string MostUsedLanguage, string MostUsedModel);
+    private record UserGroup(
+        string User, 
+        IEnumerable<CopilotRecord> Records, 
+        int TotalInteractions, 
+        int TotalGenerations, 
+        int TotalAcceptances, 
+        string MostUsedLanguage, 
+        string MostUsedModel,
+        int CodeCompletionGenerations,
+        int ChatAgentGenerations,
+        int InlineChatGenerations
+    );
     
     private record FeatureStats(string Feature, int TotalInteractions, int TotalGenerations, int TotalAcceptances);
 
@@ -125,6 +145,37 @@
     private bool IsUserGroupExpanded(string user)
     {
         return expandedUsers.Contains(user);
+    }
+
+    private void SortBy(string key)
+    {
+        if (sort == key) sortDesc = !sortDesc; else { sort = key; sortDesc = true; }
+    }
+
+    private RenderFragment SortIcon(string key) => builder =>
+    {
+        var isActive = sort == key || (key == "Interactions" && sort == "TotalInteractions") || 
+                      (key == "Generations" && sort == "TotalGenerations") || 
+                      (key == "Acceptances" && sort == "TotalAcceptances") ||
+                      (key == "CodeCompletion") || (key == "ChatAgent") || (key == "InlineChat");
+        if (!isActive) return;
+        var icon = sortDesc ? "▼" : "▲";
+        builder.AddContent(0, icon);
+    };
+
+    private int GetFeatureGenerations(CopilotRecord record, string featureName)
+    {
+        return record.TotalsByFeature
+            .Where(f => string.Equals(f.Feature, featureName, StringComparison.OrdinalIgnoreCase))
+            .Sum(f => f.CodeGenerationActivityCount);
+    }
+
+    private int GetUserFeatureGenerations(IEnumerable<CopilotRecord> records, string featureName)
+    {
+        return records
+            .SelectMany(r => r.TotalsByFeature)
+            .Where(f => string.Equals(f.Feature, featureName, StringComparison.OrdinalIgnoreCase))
+            .Sum(f => f.CodeGenerationActivityCount);
     }
 
     private List<FeatureStats> GetUserFeatureStats(IEnumerable<CopilotRecord> records)
@@ -219,7 +270,10 @@
                 g.Sum(r => r.CodeGenerationActivityCount),
                 g.Sum(r => r.CodeAcceptanceActivityCount),
                 Data.GetMostUsedLanguageForUser(g.Key),
-                Data.GetMostUsedModelForUser(g.Key)
+                Data.GetMostUsedModelForUser(g.Key),
+                GetUserFeatureGenerations(g, "code_completion"),
+                GetUserFeatureGenerations(g, "chat_panel_agent_mode"),
+                GetUserFeatureGenerations(g, "chat_inline")
             ));
 
         userGroups = sort switch
@@ -228,24 +282,12 @@
             "Interactions" or "TotalInteractions" => sortDesc ? userGroups.OrderByDescending(g => g.TotalInteractions) : userGroups.OrderBy(g => g.TotalInteractions),
             "Generations" or "TotalGenerations" => sortDesc ? userGroups.OrderByDescending(g => g.TotalGenerations) : userGroups.OrderBy(g => g.TotalGenerations),
             "Acceptances" or "TotalAcceptances" => sortDesc ? userGroups.OrderByDescending(g => g.TotalAcceptances) : userGroups.OrderBy(g => g.TotalAcceptances),
+            "CodeCompletion" => sortDesc ? userGroups.OrderByDescending(g => g.CodeCompletionGenerations) : userGroups.OrderBy(g => g.CodeCompletionGenerations),
+            "ChatAgent" => sortDesc ? userGroups.OrderByDescending(g => g.ChatAgentGenerations) : userGroups.OrderBy(g => g.ChatAgentGenerations),
+            "InlineChat" => sortDesc ? userGroups.OrderByDescending(g => g.InlineChatGenerations) : userGroups.OrderBy(g => g.InlineChatGenerations),
             _ => sortDesc ? userGroups.OrderByDescending(g => g.Records.Max(r => r.Day)) : userGroups.OrderBy(g => g.Records.Max(r => r.Day))
         };
 
         return userGroups;
     }
-
-    private void SortBy(string key)
-    {
-        if (sort == key) sortDesc = !sortDesc; else { sort = key; sortDesc = true; }
-    }
-
-    private RenderFragment SortIcon(string key) => builder =>
-    {
-        var isActive = sort == key || (key == "Interactions" && sort == "TotalInteractions") || 
-                      (key == "Generations" && sort == "TotalGenerations") || 
-                      (key == "Acceptances" && sort == "TotalAcceptances");
-        if (!isActive) return;
-        var icon = sortDesc ? "▼" : "▲";
-        builder.AddContent(0, icon);
-    };
 }
