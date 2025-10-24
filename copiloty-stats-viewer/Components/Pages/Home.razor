@@ -160,6 +160,36 @@
 
 @if (loadedCount > 0)
 {
+    <!-- Metric Calculation Info Card -->
+    <div class="alert alert-info mb-4" role="alert">
+        <h6 class="alert-heading">
+            <span class="oi oi-info" aria-hidden="true"></span> Metric Calculation Reference
+        </h6>
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Working Days Metrics (Mon-Fri only):</strong>
+                <ul class="mb-0 mt-1">
+                    <li><strong>Usage Rate</strong> - Avg % of working days used</li>
+                    <li><strong>Daily Acceptances/User</strong> - Per working day</li>
+                    <li><strong>Productivity Cost Savings</strong> - Based on working days</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <strong>Calendar Days Metrics (All days in range):</strong>
+                <ul class="mb-0 mt-1">
+                    <li><strong>License Utilization</strong> - Any activity in period</li>
+                    <li><strong>Engaged Users %</strong> - 2+ active days</li>
+                    <li><strong>Adoption Rate</strong> - Any activity in period</li>
+                </ul>
+            </div>
+        </div>
+        <hr class="mt-2 mb-2">
+        <small class="text-muted">
+            <strong>Why different bases?</strong> Working days better reflect actual development time, 
+            while calendar days capture weekend/on-call activity. Hover over any metric for detailed calculation info.
+        </small>
+    </div>
+
     <!-- Quick Wins KPI Cards -->
     <div class="mb-4">
         <h3 class="mb-3">
@@ -177,18 +207,18 @@
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Percentage of users who have used Copilot at least once out of total licensed users">
+                     title="Average % of working days (Mon-Fri) that active users used Copilot with 3+ activities. Measures consistency of usage across the work week.">
                     <div class="stat-value">@(engineeringMetrics.UsageRate.ToString("P1"))</div>
                     <div class="stat-label">Usage Rate</div>
-                    <small class="stat-description">Active vs licensed</small>
+                    <small class="stat-description">Avg working day usage</small>
                 </div>
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Percentage of licensed users who are actively engaged (5+ acceptances in the time period)">
+                     title="% of licensed seats with ANY activity in the selected date range. Measures how many users tried Copilot at least once.">
                     <div class="stat-value">@(engineeringMetrics.LicenseUtilization.ToString("P1"))</div>
                     <div class="stat-label">License Utilization</div>
-                    <small class="stat-description">Engaged users</small>
+                    <small class="stat-description">Seats with any usage</small>
                 </div>
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
@@ -201,28 +231,28 @@
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Percentage of active users who demonstrate consistent engagement with 5+ code acceptances">
+                     title="% of licensed users with meaningful engagement: 5+ activities on at least 2 days in the selected period. Uses calendar days.">
                     <div class="stat-value">@(engineeringMetrics.EngagedUsersPercent.ToString("P1"))</div>
                     <div class="stat-label">Engaged Users</div>
-                    <small class="stat-description">Regular usage</small>
+                    <small class="stat-description">2+ active days</small>
                 </div>
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Percentage of users with high adoption: 30%+ acceptance rate and 3+ active days in the period">
+                     title="% of active users with 30%+ acceptance rate AND 3+ active days. Identifies highly proficient users.">
                     <div class="stat-value">@(engineeringMetrics.PowerUsersPercent.ToString("P1"))</div>
                     <div class="stat-label">Power Users</div>
-                    <small class="stat-description">Heavy adopters</small>
+                    <small class="stat-description">High proficiency users</small>
                 </div>
             </div>
         </div>
         <div class="row mb-4">
             <div class="col-lg-4 col-md-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Estimated monetary value of developer productivity saved through Copilot usage. Calculated as: Time Saved × Cost per Hour">
+                     title="Estimated monetary value of developer productivity saved through Copilot usage. Calculated as: Time Saved × Cost per Hour. Based on working days.">
                     <div class="stat-value">$@(((engineeringMetrics.EstimatedTimeSavedHours * costPerHour)).ToString("N0"))</div>
                     <div class="stat-label">Productivity Cost Savings</div>
-                    <small class="stat-description">@(engineeringMetrics.EstimatedTimeSavedHours.ToString("N0"))h × $@(costPerHour)/hr</small>
+                    <small class="stat-description">@(engineeringMetrics.EstimatedTimeSavedHours.ToString("N0"))h × $@(costPerHour)/hr (working days)</small>
                 </div>
             </div>
         </div>
@@ -246,9 +276,10 @@
           </div>
           <div class="col-md-2">
             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
-                 title="Percentage of total licensed users who have any Copilot activity (interactions or code generations)">
+                 title="% of total licensed users who have ANY Copilot activity (interactions or code generations) in the selected date range">
               <div class="stat-value">@aideiMetrics.AdoptionRate.ToString("P1")</div>
               <div class="stat-label">Adoption Rate</div>
+              <small class="text-muted">Any activity vs licenses</small>
             </div>
           </div>
           <div class="col-md-2">
@@ -260,9 +291,10 @@
           </div>
           <div class="col-md-2">
             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
-                 title="Percentage of total licensed users who have meaningful daily engagement (>3 activities on at least 2 days) representing true productivity usage">
+                 title="% of total licensed users with meaningful daily engagement (5+ activities on at least 2 calendar days). Represents true productivity usage.">
               <div class="stat-value">@aideiMetrics.LicensedVsEngagedRate.ToString("P1")</div>
               <div class="stat-label">Licensed vs Engaged</div>
+              <small class="text-muted">Meaningful users</small>
             </div>
           </div>
           <div class="col-md-2">
@@ -302,10 +334,10 @@
                 </div>
                 <div class="col-md-3 mb-3">
                     <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
-                         title="Average number of code suggestions accepted per active user per day. Higher values indicate better individual productivity and engagement with AI assistance.">
+                         title="Average code suggestions accepted per active user per working day (Mon-Fri). Higher values indicate better individual productivity and engagement.">
                         <div class="stat-value">@(engineeringMetrics.AcceptancesPerActiveUserPerDay.ToString("F1"))</div>
                         <div class="stat-label">Daily Acceptances/User</div>
-                        <small class="text-muted">Productivity metric</small>
+                        <small class="text-muted">Per working day</small>
                     </div>
                 </div>
                 <div class="col-md-3 mb-3">
