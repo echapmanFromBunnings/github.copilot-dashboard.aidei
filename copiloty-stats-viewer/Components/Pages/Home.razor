@@ -199,11 +199,57 @@
         <div class="row mb-4">
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="AI Development Enablement Index: Composite score measuring adoption rate (40%), acceptance rate (40%), and engagement (20%)">
+                     title="AI Development Enablement Index: Composite score measuring adoption rate (@((aideiMetrics.AdoptionRate * 100).ToString("F1"))%, weight: 40%), acceptance rate (@((aideiMetrics.AcceptanceRate * 100).ToString("F1"))%, weight: 40%), and licensed vs engaged rate (@((aideiMetrics.LicensedVsEngagedRate * 100).ToString("F1"))%, weight: 20%). Overall score: @((aideiMetrics.AIDEIScore * 100).ToString("F1"))">
                     <div class="stat-value">@aideiMetrics.AIDEIScore.ToString("F1")</div>
                     <div class="stat-label">AIDEI Score</div>
-                    <small class="stat-description">Overall AI enablement</small>
+                    <small class="stat-description">
+                        <button class="btn btn-link p-0 text-decoration-none" style="font-size: inherit; color: inherit;" 
+                                @onclick="() => showAIDEIBreakdown = !showAIDEIBreakdown">
+                            @(showAIDEIBreakdown ? "Hide" : "Show") breakdown
+                        </button>
+                    </small>
                 </div>
+                
+                @if (showAIDEIBreakdown)
+                {
+                    <div class="mt-2 small">
+                        <div class="row g-1">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <span>Adoption (@((aideiMetrics.AdoptionRate * 100).ToString("F1"))%)</span>
+                                    <span class="text-muted">×40%</span>
+                                </div>
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-primary" style="width: @((aideiMetrics.AdoptionRate * 100).ToString("F1"))%"></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <span>Acceptance (@((aideiMetrics.AcceptanceRate * 100).ToString("F1"))%)</span>
+                                    <span class="text-muted">×40%</span>
+                                </div>
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-success" style="width: @((aideiMetrics.AcceptanceRate * 100).ToString("F1"))%"></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <span>Engagement (@((aideiMetrics.LicensedVsEngagedRate * 100).ToString("F1"))%)</span>
+                                    <span class="text-muted">×20%</span>
+                                </div>
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-info" style="width: @((aideiMetrics.LicensedVsEngagedRate * 100).ToString("F1"))%"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-1 pt-1 border-top">
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>AIDEI Score</span>
+                                    <span>@((aideiMetrics.AIDEIScore * 100).ToString("F1"))</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
             <div class="col-lg-2 col-md-3 col-sm-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
@@ -585,6 +631,7 @@
 	private bool loadAttempted = false;
 	private int totalLicensedUsers = 0;
 	private bool showAdvancedMetrics = false;
+	private bool showAIDEIBreakdown = false;
 	private bool showSettings = false;
 	
 	// Configuration settings with change notifications
