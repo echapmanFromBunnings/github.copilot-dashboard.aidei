@@ -171,7 +171,7 @@
                 <ul class="mb-0 mt-1">
                     <li><strong>Usage Rate</strong> - Avg % of working days used</li>
                     <li><strong>Daily Acceptances/User</strong> - Per working day</li>
-                    <li><strong>Productivity Cost Savings</strong> - Based on working days</li>
+                    <li><strong>Productivity Realised Benefits</strong> - Based on working days</li>
                 </ul>
             </div>
             <div class="col-md-6">
@@ -295,9 +295,9 @@
         <div class="row mb-4">
             <div class="col-lg-4 col-md-6 mb-3">
                 <div class="stat-card text-center" data-bs-toggle="tooltip" data-bs-placement="top" 
-                     title="Estimated monetary value of developer productivity saved through Copilot usage. Calculated as: Time Saved × Cost per Hour. Based on working days.">
+                     title="Estimated monetary value of developer productivity benefits realised through Copilot usage. Calculated as: Time Saved × Cost per Hour. Based on working days.">
                     <div class="stat-value">$@(((engineeringMetrics.EstimatedTimeSavedHours * costPerHour)).ToString("N0"))</div>
-                    <div class="stat-label">Productivity Cost Savings</div>
+                    <div class="stat-label">Productivity Realised Benefits</div>
                     <small class="stat-description">@(engineeringMetrics.EstimatedTimeSavedHours.ToString("N0"))h × $@(costPerHour)/hr (working days)</small>
                 </div>
             </div>

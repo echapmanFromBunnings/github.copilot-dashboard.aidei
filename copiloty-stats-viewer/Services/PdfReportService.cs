@@ -331,13 +331,13 @@ public class PdfReportService
                 row.RelativeItem().Element(container => CreateMetricCard(container, engineering.PowerUsersPercent.ToString("P1"), "Power Users", "Heavy adopters"));
             });
             
-            // Productivity Cost Savings
+            // Productivity Realised Benefits
             var costSavings = engineering.EstimatedTimeSavedHours * costPerHour;
             column.Item().PaddingTop(10).Row(row =>
             {
                 row.RelativeItem(2).Element(container => CreateMetricCard(container, 
                     $"${costSavings:N0}", 
-                    "Productivity Cost Savings", 
+                    "Productivity Realised Benefits", 
                     $"{engineering.EstimatedTimeSavedHours:N0}h × ${costPerHour}/hr"));
                 row.RelativeItem(1); // Empty space
             });
