@@ -348,9 +348,15 @@ public sealed class DataService
     {
         var filtered = GetFiltered().ToList();
         int activeUsers = filtered.Select(r => r.UserLogin).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-        int usingChat = filtered.Count(r => r.UsedChat);
-        int usingInline = filtered.Count(r => r.TotalsByFeature.Any(f => string.Equals(f.Feature, "chat_inline", StringComparison.OrdinalIgnoreCase)));
-        int usingCompletions = filtered.Count(r => r.TotalsByFeature.Any(f => string.Equals(f.Feature, "code_completion", StringComparison.OrdinalIgnoreCase)));
+        int usingChat = filtered
+            .Where(r => r.UsedChat)
+            .Select(r => r.UserLogin).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int usingInline = filtered
+            .Where(r => r.TotalsByFeature.Any(f => string.Equals(f.Feature, "chat_inline", StringComparison.OrdinalIgnoreCase)))
+            .Select(r => r.UserLogin).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int usingCompletions = filtered
+            .Where(r => r.TotalsByFeature.Any(f => string.Equals(f.Feature, "code_completion", StringComparison.OrdinalIgnoreCase)))
+            .Select(r => r.UserLogin).Distinct(StringComparer.OrdinalIgnoreCase).Count();
         return new AdoptionStats(activeUsers, usingChat, usingInline, usingCompletions);
     }
 
