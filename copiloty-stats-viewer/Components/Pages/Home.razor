@@ -520,28 +520,42 @@
                 </div>
                 <div class="card-body">
                     <div class="row text-center">
-                        <div class="col-6 col-md-3 mb-3">
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
                             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Total number of user interactions with Copilot across all features (chat messages, completion requests, etc.)">
                                 <div class="stat-value">@totals.Interactions.ToString("N0")</div>
                                 <div class="stat-label">Interactions</div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3 mb-3">
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
                             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Total number of AI-generated code suggestions and completions provided by Copilot to users">
                                 <div class="stat-value">@totals.Generations.ToString("N0")</div>
                                 <div class="stat-label">Generations</div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3 mb-3">
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
                             <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Total number of AI-generated code suggestions that developers accepted and incorporated into their code">
                                 <div class="stat-value">@totals.Acceptances.ToString("N0")</div>
                                 <div class="stat-label">Acceptances</div>
                             </div>
                         </div>
-                        <div class="col-6 col-md-3 mb-3">
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top"
+                                 title="Total agent sessions created, based on chat panel agent mode interactions in the selected date range.">
+                                <div class="stat-value">@totals.AgentSessionsCreated.ToString("N0")</div>
+                                <div class="stat-label">Agent Sessions</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                            <div class="stat-card" data-bs-toggle="tooltip" data-bs-placement="top"
+                                 title="Total lines of code suggested by agent features, based on loc_suggested_to_add_sum from agent-related features.">
+                                <div class="stat-value">@totals.AgentSuggestedLoc.ToString("N0")</div>
+                                <div class="stat-label">Agent LOC Suggested</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2 mb-3">
                             <div class="stat-card stat-card-with-sparkline" data-bs-toggle="tooltip" data-bs-placement="top" 
                                  title="Activity-Based Acceptance Rate: Percentage of code generation activities that resulted in code acceptance (Activity Sessions). This differs from GitHub's Suggestion-Based rate which counts individual suggestions. Activity-based rates are typically lower as one session may contain multiple suggestions.">
                                 <div class="stat-main">
@@ -616,7 +630,7 @@
 		private DateOnly minDate, maxDate;
 	private int refreshKey = 0;
 	private DataService.AdoptionStats adoption = new(0,0,0,0);
-	private DataService.Totals totals = new(0,0,0);
+    private DataService.Totals totals = new(0,0,0,0,0);
 	private DataService.AIDEIMetrics aideiMetrics = new(0,0,0,0,0);
 	private DataService.EngineeringMetrics engineeringMetrics = new(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 	private (string Model, int Generations) mostUsedModel = ("", 0);

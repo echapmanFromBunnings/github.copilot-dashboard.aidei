@@ -80,6 +80,7 @@ public sealed class DataService
             "pip-requirements" => "Requirements.txt",
             "github-actions-workflow" => "GitHub Actions",
             "oracle-sql" => "Oracle SQL",
+            "plsql" => "Oracle SQL",
             "mermaid" => "Mermaid",
             "vue" => "Vue.js",
             "svelte" => "Svelte",
@@ -250,9 +251,9 @@ public sealed class DataService
                 ModelUsage = dayGroup
                     .SelectMany(r => r.TotalsByModelFeature)
                     .Where(tm => !string.IsNullOrWhiteSpace(tm.Model) && tm.CodeGenerationActivityCount > 0) // Filter out empty models and zero activity
-                    .GroupBy(tm => tm.Model)
+                    .GroupBy(tm => GetFriendlyModelName(tm.Model))
                     .ToDictionary(
-                        g => GetFriendlyModelName(g.Key),
+                        g => g.Key,
                         g => g.Sum(tm => tm.CodeGenerationActivityCount)
                     )
             })
@@ -275,9 +276,9 @@ public sealed class DataService
                 LanguageUsage = dayGroup
                     .SelectMany(r => r.TotalsByLanguageFeature)
                     .Where(lf => !string.IsNullOrWhiteSpace(lf.Language) && lf.CodeGenerationActivityCount > 0) // Filter out empty languages and zero activity
-                    .GroupBy(lf => lf.Language)
+                    .GroupBy(lf => GetFriendlyLanguageName(lf.Language))
                     .ToDictionary(
-                        g => GetFriendlyLanguageName(g.Key),
+                        g => g.Key,
                         g => g.Sum(lf => lf.CodeGenerationActivityCount)
                     )
             })
@@ -365,7 +366,7 @@ public sealed class DataService
     /// The AcceptanceRate property uses activity session counts (not individual suggestions).
     /// This differs from GitHub's official Suggestion-Based metrics which count individual suggestions.
     /// </summary>
-    public sealed record Totals(int Interactions, int Generations, int Acceptances)
+    public sealed record Totals(int Interactions, int Generations, int Acceptances, int AgentSessionsCreated, int AgentSuggestedLoc)
     {
         /// <summary>
         /// Activity-Based Acceptance Rate: Percentage of code generation activities that resulted in acceptance activities.
@@ -375,13 +376,36 @@ public sealed class DataService
         public double AcceptanceRate => Generations > 0 ? (double)Acceptances / Generations : 0d;
     }
 
+    private static bool IsAgentFeature(string? feature)
+    {
+        if (string.IsNullOrWhiteSpace(feature)) return false;
+        return feature.Contains("agent", StringComparison.OrdinalIgnoreCase);
+    }
+
     public Totals GetTotals()
     {
-        var filtered = GetFiltered();
+        var filtered = GetFiltered().ToList();
         int interactions = filtered.Sum(r => r.UserInitiatedInteractionCount);
         int generations = filtered.Sum(r => r.CodeGenerationActivityCount);
         int acceptances = filtered.Sum(r => r.CodeAcceptanceActivityCount);
-        return new Totals(interactions, generations, acceptances);
+
+        int agentSessionsCreated = filtered.Sum(r =>
+            r.TotalsByFeature
+                .Where(f => string.Equals(f.Feature, "chat_panel_agent_mode", StringComparison.OrdinalIgnoreCase))
+                .Sum(f => f.UserInitiatedInteractionCount));
+
+        if (agentSessionsCreated == 0)
+        {
+            // Fallback for datasets that only expose used_agent and omit per-feature interaction breakdown.
+            agentSessionsCreated = filtered.Count(r => r.UsedAgent);
+        }
+
+        int agentSuggestedLoc = filtered.Sum(r =>
+            r.TotalsByFeature
+                .Where(f => IsAgentFeature(f.Feature))
+                .Sum(f => f.LocSuggestedToAddSum + f.GeneratedLocSum));
+
+        return new Totals(interactions, generations, acceptances, agentSessionsCreated, agentSuggestedLoc);
     }
 
     // Configurable parameters for metrics

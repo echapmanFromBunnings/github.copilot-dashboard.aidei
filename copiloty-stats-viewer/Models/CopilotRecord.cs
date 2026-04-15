@@ -53,6 +53,7 @@ public sealed class FeatureTotals
     [JsonPropertyName("user_initiated_interaction_count")] public int UserInitiatedInteractionCount { get; set; }
     [JsonPropertyName("code_generation_activity_count")] public int CodeGenerationActivityCount { get; set; }
     [JsonPropertyName("code_acceptance_activity_count")] public int CodeAcceptanceActivityCount { get; set; }
+    [JsonPropertyName("loc_suggested_to_add_sum")] public int LocSuggestedToAddSum { get; set; }
     [JsonPropertyName("generated_loc_sum")] public int GeneratedLocSum { get; set; }
     [JsonPropertyName("accepted_loc_sum")] public int AcceptedLocSum { get; set; }
 }
@@ -84,6 +85,7 @@ public sealed class ModelFeatureTotals
     [JsonPropertyName("user_initiated_interaction_count")] public int UserInitiatedInteractionCount { get; set; }
     [JsonPropertyName("code_generation_activity_count")] public int CodeGenerationActivityCount { get; set; }
     [JsonPropertyName("code_acceptance_activity_count")] public int CodeAcceptanceActivityCount { get; set; }
+    [JsonPropertyName("loc_suggested_to_add_sum")] public int LocSuggestedToAddSum { get; set; }
     [JsonPropertyName("generated_loc_sum")] public int GeneratedLocSum { get; set; }
     [JsonPropertyName("accepted_loc_sum")] public int AcceptedLocSum { get; set; }
 }

@@ -423,10 +423,12 @@ public class PdfReportService
                     {
                         metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.Interactions.ToString("N0"), "Interactions"));
                         metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.Generations.ToString("N0"), "Generations"));
+                        metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.Acceptances.ToString("N0"), "Acceptances"));
                     });
                     col.Item().PaddingTop(5).Row(metricRow =>
                     {
-                        metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.Acceptances.ToString("N0"), "Acceptances"));
+                        metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.AgentSessionsCreated.ToString("N0"), "Agent Sessions"));
+                        metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.AgentSuggestedLoc.ToString("N0"), "Agent LOC Suggested"));
                         metricRow.RelativeItem().Element(container => CreateSmallMetricCard(container, totals.AcceptanceRate.ToString("P1"), "Acceptance Rate"));
                     });
                 });
